@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { AniListClient } from "../clients/anilist.js";
 import { getUserList } from "../clients/anilist/list.js";
 import { searchMedia } from "../clients/anilist/search.js";
+import type { AniListContext } from "../clients/anilist/context.js";
 import {
   applyCuratedMappingOverrides,
   buildCompletedHistoricalTargets,
@@ -51,7 +52,7 @@ export async function fetchWholeAnimeList(
 }
 
 async function resolveFallbackMappings(
-  client: AniListClient,
+  ctx: AniListContext,
   history: AniDbHistory[],
   mappings: ResolvedMapping[],
 ): Promise<ResolvedMapping[]> {
@@ -71,7 +72,7 @@ async function resolveFallbackMappings(
     }
 
     const term = item.englishTitle || item.title;
-    const page = await searchMedia(client.ctx(), "ANIME", { term, perPage: 5 });
+    const page = await searchMedia(ctx, "ANIME", { term, perPage: 5 });
     const choice = chooseFallbackMatch(item, parseSearchCandidates(page));
 
     if (choice.match) {
@@ -101,13 +102,24 @@ export async function resolveMigrationMappings(
     mappingFile?: string;
     mappingUrl?: string;
     skipFallback?: boolean;
+    anonymousFallback?: boolean;
   } = {},
 ): Promise<ResolvedMapping[]> {
   const mappingUrl = options.mappingUrl ?? DEFAULT_MAPPING_URL;
   const mappingData = await loadMappings(options.mappingFile, mappingUrl);
   let mappings = exactMappings(history, mappingData);
   if (!options.skipFallback) {
-    mappings = await resolveFallbackMappings(client, history, mappings);
+    const baseCtx = client.ctx();
+    const fallbackCtx: AniListContext = options.anonymousFallback
+      ? {
+          gql: baseCtx.gql,
+          authHeader: () => undefined,
+          requireAuth: () => {
+            throw new Error("Anonymous fallback mapping cannot require authentication");
+          },
+        }
+      : baseCtx;
+    mappings = await resolveFallbackMappings(fallbackCtx, history, mappings);
   }
   return applyCuratedMappingOverrides(mappings);
 }
