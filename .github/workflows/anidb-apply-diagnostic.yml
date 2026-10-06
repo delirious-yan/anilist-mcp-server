@@ -1,6 +1,7 @@
 name: AniDB Apply Diagnostic
 
 # Rerun after viewer parsing fix.
+# Enumerate every unavailable current target.
 
 on:
   push:
