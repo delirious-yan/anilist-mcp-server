@@ -15,7 +15,11 @@ import {
   fetchWholeAnimeList,
   resolveMigrationMappings,
 } from "./importers/anidbRuntime.js";
-import { buildCompletedOnlyWritePlan } from "./importers/anidbWrite.js";
+import {
+  buildCompletedOnlyWritePlan,
+  parseProbedListEntry,
+  type ProbedListEntry,
+} from "./importers/anidbWrite.js";
 
 const APPROVED = {
   user: "Luciedmeo",
@@ -31,34 +35,6 @@ const APPROVED = {
 } as const;
 
 const ViewerSchema = z.object({ name: z.string().min(1) }).loose();
-
-const FuzzyDateSchema = z
-  .object({
-    year: z.number().int().nullish(),
-    month: z.number().int().nullish(),
-    day: z.number().int().nullish(),
-  })
-  .nullish();
-
-const ProbedEntrySchema = z
-  .object({
-    id: z.number().int().positive(),
-    status: z.string().nullish(),
-    progress: z.number().int().nonnegative().nullish(),
-    startedAt: FuzzyDateSchema,
-    completedAt: FuzzyDateSchema,
-  })
-  .loose();
-
-const ProbeResponseSchema = z
-  .object({
-    Media: z
-      .object({
-        mediaListEntry: ProbedEntrySchema,
-      })
-      .nullish(),
-  })
-  .loose();
 
 const ActivityOptionSchema = z.object({
   type: z.enum(MEDIA_LIST_STATUSES),
@@ -185,14 +161,14 @@ function hasDate(
 async function probeAuthenticatedListEntry(
   client: AniListClient,
   mediaId: number,
-): Promise<z.infer<typeof ProbedEntrySchema> | null> {
+): Promise<ProbedListEntry | null> {
   const ctx = client.ctx();
   const header = ctx.requireAuth();
   const query = `query($id:Int){Media(id:$id,type:ANIME){
     mediaListEntry{id status progress startedAt{year month day} completedAt{year month day}}
   }}`;
   const data = await ctx.gql.request<unknown>(query, { id: mediaId }, header, { skipCache: true });
-  return ProbeResponseSchema.parse(data).Media?.mediaListEntry ?? null;
+  return parseProbedListEntry(data);
 }
 
 async function fetchActivityOptions(client: AniListClient): Promise<ActivityOption[]> {
