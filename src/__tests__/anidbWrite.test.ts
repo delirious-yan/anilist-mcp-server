@@ -1,10 +1,47 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildCompletedOnlyWritePlan } from "../importers/anidbWrite.js";
+import {
+  buildCompletedOnlyWritePlan,
+  parseProbedListEntry,
+} from "../importers/anidbWrite.js";
 import {
   completedTargetFingerprint,
   currentListSnapshotFingerprint,
 } from "../importers/anidbRuntime.js";
+
+test("authenticated probe treats a missing AniList entry as null", () => {
+  assert.equal(
+    parseProbedListEntry({
+      Media: {
+        mediaListEntry: null,
+      },
+    }),
+    null,
+  );
+});
+
+test("authenticated probe still validates an existing AniList entry", () => {
+  assert.deepEqual(
+    parseProbedListEntry({
+      Media: {
+        mediaListEntry: {
+          id: 42,
+          status: "COMPLETED",
+          progress: 12,
+          startedAt: { year: null, month: null, day: null },
+          completedAt: { year: null, month: null, day: null },
+        },
+      },
+    }),
+    {
+      id: 42,
+      status: "COMPLETED",
+      progress: 12,
+      startedAt: { year: null, month: null, day: null },
+      completedAt: { year: null, month: null, day: null },
+    },
+  );
+});
 
 test("completed-only write plan preserves every existing AniList entry", () => {
   const targets = [
