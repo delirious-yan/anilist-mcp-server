@@ -6,6 +6,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Add a read-only AniDB migration dry-run CLI that parses `json-large` and `txt-udp-mylist` exports, maps AniDB IDs to AniList IDs, compares against an AniList account, and emits proposed changes without calling any AniList mutation.
+
 ## [0.9.0] - 2026-09-24
 
 ### Added
