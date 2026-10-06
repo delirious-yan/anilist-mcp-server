@@ -3,6 +3,7 @@ name: AniDB Migration Dry Run
 # Repo-only private-history comparison; intentionally zero AniList mutations.
 # Mapping dataset rows without an AniDB ID are filtered by the importer.
 # Curated split/aggregate overrides are applied before comparison.
+# The log also fingerprints the reviewed completed-only target/action set.
 
 on:
   workflow_dispatch:
