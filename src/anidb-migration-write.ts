@@ -426,16 +426,6 @@ async function main(): Promise<void> {
     throw new Error("Apply mode requires ANILIST_ACCESS_TOKEN");
   }
 
-  const viewer = ViewerSchema.parse(
-    await client.ctx().gql.request<unknown>(
-      "query{Viewer{name}}",
-      {},
-      client.ctx().requireAuth(),
-      { skipCache: true },
-    ),
-  );
-  // ViewerSchema above parses the top-level only if the query were Viewer
-  // itself; this explicit extraction keeps a malformed auth response fatal.
   const viewerName = z
     .object({ Viewer: ViewerSchema })
     .parse(
@@ -451,8 +441,6 @@ async function main(): Promise<void> {
       `Authenticated AniList account is ${viewerName}; expected ${APPROVED.user}. No writes applied.`,
     );
   }
-  void viewer;
-
   const guards = [
     [history.length === APPROVED.animeCount, "AniDB history count changed"],
     [targets.length === APPROVED.completedTargetCount, "Completed target count changed"],
