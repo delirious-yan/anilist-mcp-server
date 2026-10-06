@@ -1,0 +1,141 @@
+name: AniDB Completed-only Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Plan is read-only; apply performs the approved completed-only migration
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+        default: plan
+      activity_mode:
+        description: Apply only — preserve feed activity, or temporarily suppress COMPLETED list activity
+        required: true
+        type: choice
+        options:
+          - choose
+          - suppress
+          - preserve
+        default: choose
+      confirmation:
+        description: Apply only — exact confirmation phrase shown in docs
+        required: false
+        type: string
+  push:
+    branches:
+      - feat/anidb-completed-only-write
+    paths:
+      - .github/workflows/anidb-completed-only.yml
+      - src/anidb-migration-write.ts
+      - src/anidb-migration.ts
+      - src/importers/anidb.ts
+      - src/importers/anidbRuntime.ts
+      - src/importers/anidbWrite.ts
+      - src/__tests__/anidbImporter.test.ts
+      - src/__tests__/anidbWrite.test.ts
+      - package.json
+      - tsup.config.ts
+
+permissions:
+  contents: read
+
+concurrency:
+  group: anidb-completed-only-migration
+  cancel-in-progress: false
+
+jobs:
+  migration:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_USER: Luciedmeo
+      ANIDB_HISTORY_BUNDLE_B64: ${{ secrets.ANIDB_HISTORY_BUNDLE_B64 }}
+      MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'plan' }}
+      ACTIVITY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.activity_mode || 'choose' }}
+      CONFIRMATION: ${{ github.event_name == 'workflow_dispatch' && inputs.confirmation || '' }}
+      LOG_LEVEL: warn
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Decode private AniDB history bundle
+        shell: bash
+        run: |
+          if [ -z "$ANIDB_HISTORY_BUNDLE_B64" ]; then
+            echo "::error::Repository secret ANIDB_HISTORY_BUNDLE_B64 is not configured."
+            exit 1
+          fi
+
+          printf '%s' "$ANIDB_HISTORY_BUNDLE_B64" |
+            base64 --decode |
+            gzip -dc > "$RUNNER_TEMP/anidb-history.json"
+
+          jq -e '.version == 1 and (.anime | type == "array")'             "$RUNNER_TEMP/anidb-history.json" >/dev/null
+
+      - name: Verify or apply completed-only migration
+        shell: bash
+        env:
+          ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
+        run: |
+          args=(
+            --history-bundle "$RUNNER_TEMP/anidb-history.json"
+            --user "$TARGET_USER"
+            --output "$RUNNER_TEMP/anidb-write-report.json"
+          )
+
+          if [ "$MODE" = "apply" ]; then
+            if [ -z "$ANILIST_ACCESS_TOKEN" ]; then
+              echo "::error::Apply mode requires repository secret ANILIST_ACCESS_TOKEN."
+              exit 1
+            fi
+            if [ "$ACTIVITY_MODE" = "choose" ]; then
+              echo "::error::Apply mode requires an explicit activity_mode choice."
+              exit 1
+            fi
+            args+=(
+              --apply
+              --confirm "$CONFIRMATION"
+              --activity-mode "$ACTIVITY_MODE"
+            )
+          else
+            unset ANILIST_ACCESS_TOKEN
+          fi
+
+          node dist/anidb-migration-write.js "${args[@]}"
+
+      - name: Encrypt migration report
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -f "$RUNNER_TEMP/anidb-write-report.json" ]; then
+            echo "No migration report was produced."
+            exit 0
+          fi
+
+          REPORT_KEY="$(printf '%s' "$ANIDB_HISTORY_BUNDLE_B64" | sha256sum | cut -d' ' -f1)"
+          REPORT_KEY="$REPORT_KEY" openssl enc             -aes-256-cbc             -salt             -pbkdf2             -a             -A             -in "$RUNNER_TEMP/anidb-write-report.json"             -out "$RUNNER_TEMP/anidb-write-report.enc.txt"             -pass env:REPORT_KEY
+
+      - name: Upload encrypted migration report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: anidb-completed-only-${{ github.run_id }}
+          path: ${{ runner.temp }}/anidb-write-report.enc.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Remove plaintext private data
+        if: always()
+        shell: bash
+        run: |
+          rm -f             "$RUNNER_TEMP/anidb-history.json"             "$RUNNER_TEMP/anidb-write-report.json"
