@@ -4,6 +4,7 @@ name: AniDB Migration Dry Run
 # Mapping dataset rows without an AniDB ID are filtered by the importer.
 # Curated split/aggregate overrides are applied before comparison.
 # The log also fingerprints the reviewed completed-only target/action set.
+# Overlapping aggregate/direct evidence is de-duplicated before fingerprinting.
 
 on:
   workflow_dispatch:
