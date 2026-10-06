@@ -190,16 +190,15 @@ typecheck:scripts`, folded into `npm run lint`) instead of the main
   building on.
 - Cross-platform: macOS, Linux and Windows. Avoid POSIX-only shell in npm
   scripts (use the Node helper scripts).
-- **Commits:** author/committer `Grinv <4070730+Grinv@users.noreply.github.com>`;
-  do **not** add a `Co-Authored-By` trailer. This repo has no local/global git
-  `user.name`/`user.email` configured, so a bare `git commit` silently falls
-  back to whatever the OS/environment auto-detects (confirmed: has produced a
-  wrong-author commit before) — before your **first** commit each session,
-  check `git log -1 --format='%an <%ae>'`, and if it isn't the identity above,
-  pass `GIT_AUTHOR_NAME`/`GIT_AUTHOR_EMAIL`/`GIT_COMMITTER_NAME`/
-  `GIT_COMMITTER_EMAIL` as env vars on every `git commit`/`npm version`
-  invocation rather than relying on ambient config. Don't fix this by running
-  `git config` yourself — that's a standing instruction outside this file.
+- **Commits on this fork:** commits may use the authenticated GitHub user's
+  identity or the author/committer identity supplied by the active GitHub
+  connector/automation. Do **not** force the upstream maintainer identity
+  `Grinv <4070730+Grinv@users.noreply.github.com>` for fork-specific work,
+  and do **not** impersonate upstream authorship. Preserve original authorship
+  on existing upstream commits. If preparing a contribution intended for
+  upstream, follow the upstream repository's contribution requirements at that
+  time. A `Co-Authored-By` trailer is optional only when it accurately
+  reflects a real co-author; never add one automatically.
 - **CodeQL** (`.github/workflows/codeql.yml`) scans `javascript-typescript` on
   push/PR to main plus a weekly cron — no local equivalent command; findings
   surface under the repo's **Security → Code scanning** tab.
