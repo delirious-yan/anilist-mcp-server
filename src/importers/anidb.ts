@@ -21,9 +21,7 @@ const JsonAnimeSchema = z
   })
   .loose();
 
-const JsonLargeSchema = z
-  .object({ anime: z.array(JsonAnimeSchema) })
-  .loose();
+const JsonLargeSchema = z.object({ anime: z.array(JsonAnimeSchema) }).loose();
 
 const MappingSchema = z
   .object({
@@ -292,10 +290,7 @@ export function parseIdMappings(value: unknown): IdMapping[] {
   return MappingListSchema.parse(value);
 }
 
-export function exactMappings(
-  history: AniDbHistory[],
-  mappings: IdMapping[],
-): ResolvedMapping[] {
+export function exactMappings(history: AniDbHistory[], mappings: IdMapping[]): ResolvedMapping[] {
   const byAniDb = new Map<number, Set<number>>();
   for (const mapping of mappings) {
     const ids = byAniDb.get(mapping.idAniDB) ?? new Set<number>();
@@ -319,13 +314,20 @@ function normalizeTitle(value: string | null | undefined): string {
 
 function aniDbTypeToAniListFormat(type: string): string | undefined {
   switch (type.trim().toLowerCase()) {
-    case "tv series": return "TV";
-    case "tv special": return "SPECIAL";
-    case "ova": return "OVA";
-    case "movie": return "MOVIE";
-    case "web": return "ONA";
-    case "music video": return "MUSIC";
-    default: return undefined;
+    case "tv series":
+      return "TV";
+    case "tv special":
+      return "SPECIAL";
+    case "ova":
+      return "OVA";
+    case "movie":
+      return "MOVIE";
+    case "web":
+      return "ONA";
+    case "music video":
+      return "MUSIC";
+    default:
+      return undefined;
   }
 }
 
@@ -344,14 +346,18 @@ export function chooseFallbackMatch(
 
   const scored = candidates
     .map((candidate) => {
-      const titles = [candidate.title?.romaji, candidate.title?.english, candidate.title?.native]
-        .filter((title): title is string => Boolean(title));
+      const titles = [
+        candidate.title?.romaji,
+        candidate.title?.english,
+        candidate.title?.native,
+      ].filter((title): title is string => Boolean(title));
       const normalized = titles.map(normalizeTitle);
       const exactTitle = normalized.some((title) => expectedTitles.has(title));
       const partialTitle = normalized.some((title) =>
         [...expectedTitles].some(
           (expected) =>
-            Boolean(expected) && Boolean(title) &&
+            Boolean(expected) &&
+            Boolean(title) &&
             (title.includes(expected) || expected.includes(title)),
         ),
       );
@@ -359,14 +365,24 @@ export function chooseFallbackMatch(
       let score = exactTitle ? 8 : partialTitle ? 4 : 0;
       const candidateYear = candidate.startDate?.year ?? undefined;
       if (history.year && candidateYear === history.year) score += 3;
-      else if (history.year && candidateYear && Math.abs(candidateYear - history.year) === 1) score += 1;
+      else if (history.year && candidateYear && Math.abs(candidateYear - history.year) === 1)
+        score += 1;
       if (expectedFormat && candidate.format === expectedFormat) score += 2;
-      if (history.totalEpisodes > 0 && candidate.episodes && candidate.episodes === history.totalEpisodes) score += 2;
+      if (
+        history.totalEpisodes > 0 &&
+        candidate.episodes &&
+        candidate.episodes === history.totalEpisodes
+      )
+        score += 2;
 
       return {
         id: candidate.id,
         score,
-        title: candidate.title?.english ?? candidate.title?.romaji ?? candidate.title?.native ?? `AniList ${candidate.id}`,
+        title:
+          candidate.title?.english ??
+          candidate.title?.romaji ??
+          candidate.title?.native ??
+          `AniList ${candidate.id}`,
         year: candidateYear,
         format: candidate.format ?? undefined,
         episodes: candidate.episodes ?? undefined,
@@ -481,10 +497,18 @@ export function compareMigration(
     };
 
     if (current.status === "COMPLETED") {
-      return { ...base, category: "already_completed", note: "AniList is already Completed. Preserve the current AniList entry." };
+      return {
+        ...base,
+        category: "already_completed",
+        note: "AniList is already Completed. Preserve the current AniList entry.",
+      };
     }
     if (current.progress > item.watchedNormalEpisodes) {
-      return { ...base, category: "anilist_ahead", note: "AniList progress is ahead of the historical AniDB watched count. Preserve AniList." };
+      return {
+        ...base,
+        category: "anilist_ahead",
+        note: "AniList progress is ahead of the historical AniDB watched count. Preserve AniList.",
+      };
     }
     if (item.watchState === "completed") {
       return {
@@ -507,6 +531,10 @@ export function compareMigration(
         note: "AniDB has stronger historical progress evidence. Preserve AniList status; review a progress-only update.",
       };
     }
-    return { ...base, category: "same_or_equivalent", note: "No stronger historical change is supported. Preserve AniList." };
+    return {
+      ...base,
+      category: "same_or_equivalent",
+      note: "No stronger historical change is supported. Preserve AniList.",
+    };
   });
 }
