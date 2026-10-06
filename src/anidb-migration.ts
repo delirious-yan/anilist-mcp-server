@@ -95,7 +95,10 @@ function parseArgs(argv: string[]): Args {
 
 function readNullTerminated(buffer: Buffer): string {
   const end = buffer.indexOf(0);
-  return buffer.subarray(0, end >= 0 ? end : buffer.length).toString("utf8").trim();
+  return buffer
+    .subarray(0, end >= 0 ? end : buffer.length)
+    .toString("utf8")
+    .trim();
 }
 
 function parseTarSize(field: Buffer): number {
