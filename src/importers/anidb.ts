@@ -201,7 +201,9 @@ export function parseUdpMyList(text: string): UdpMyListRecord[] {
   const lines = text.split(/\r?\n/);
 
   for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index].trim();
+    const rawLine = lines[index];
+    if (rawLine === undefined) continue;
+    const line = rawLine.trim();
     if (!/^\d+\|/.test(line)) continue;
     const fields = line.split("|");
     if (fields.length < 8) throw new Error(`Malformed UDP MyList record on line ${index + 1}`);
