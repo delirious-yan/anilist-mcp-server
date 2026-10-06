@@ -14,6 +14,7 @@ import {
   compareMigration,
   exactMappings,
   parseCompactAniListRows,
+  parseHistoryBundle,
   parseIdMappings,
   parseJsonLarge,
   parseSearchCandidates,
@@ -30,6 +31,7 @@ const ViewerSchema = z.object({ name: z.string().min(1) }).loose();
 interface Args {
   jsonLarge?: string;
   udp?: string;
+  historyBundle?: string;
   user: string;
   mappingFile?: string;
   mappingUrl: string;
@@ -39,7 +41,7 @@ interface Args {
 }
 
 function usage(): string {
-  return `AniDB -> AniList migration dry-run\n\nUsage:\n  node dist/anidb-migration.js --json-large <json-large.tgz|mylist.json> \\\n    --udp <txt-udp-mylist.tgz|mylist.txt> [options]\n\nOptions:\n  --user <AniList username>   Target account (default: Luciedmeo)\n  --mapping-file <path>       Use a local AniDB/AniList mapping JSON\n  --mapping-url <url>         Override the pinned mapping URL\n  --output <path>             Write the full JSON report to this file\n  --skip-fallback             Do not query AniList for unresolved ID mappings\n  --help                      Show this help\n\nThis command is strictly read-only. It never calls an AniList mutation.`;
+  return `AniDB -> AniList migration dry-run\n\nUsage:\n  node dist/anidb-migration.js --json-large <json-large.tgz|mylist.json> \\\n    --udp <txt-udp-mylist.tgz|mylist.txt> [options]\n\n  node dist/anidb-migration.js --history-bundle <history.json> [options]\n\nOptions:\n  --history-bundle <path>     Use a normalized private history bundle instead of raw exports\n  --user <AniList username>   Target account (default: Luciedmeo)\n  --mapping-file <path>       Use a local AniDB/AniList mapping JSON\n  --mapping-url <url>         Override the pinned mapping URL\n  --output <path>             Write the full JSON report to this file\n  --skip-fallback             Do not query AniList for unresolved ID mappings\n  --help                      Show this help\n\nThis command is strictly read-only. It never calls an AniList mutation.`;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -65,6 +67,9 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--udp":
         args.udp = next();
+        break;
+      case "--history-bundle":
+        args.historyBundle = next();
         break;
       case "--user":
         args.user = next();
@@ -243,13 +248,22 @@ async function main(): Promise<void> {
     process.stdout.write(`${usage()}\n`);
     return;
   }
-  if (!args.jsonLarge || !args.udp) {
-    throw new Error(`Both --json-large and --udp are required.\n\n${usage()}`);
+  const rawMode = Boolean(args.jsonLarge || args.udp);
+  if (args.historyBundle && rawMode) {
+    throw new Error(`Use either --history-bundle or --json-large/--udp, not both.\n\n${usage()}`);
+  }
+  if (!args.historyBundle && (!args.jsonLarge || !args.udp)) {
+    throw new Error(
+      `Provide --history-bundle, or provide both --json-large and --udp.\n\n${usage()}`,
+    );
   }
 
-  const anime = parseJsonLarge(readExportText(args.jsonLarge, "mylist.json"));
-  const udp = parseUdpMyList(readExportText(args.udp, "mylist.txt"));
-  const history = buildAniDbHistory(anime, udp);
+  const history = args.historyBundle
+    ? parseHistoryBundle(JSON.parse(readFileSync(args.historyBundle, "utf8")) as unknown)
+    : buildAniDbHistory(
+        parseJsonLarge(readExportText(args.jsonLarge!, "mylist.json")),
+        parseUdpMyList(readExportText(args.udp!, "mylist.txt")),
+      );
   const mappingData = await loadMappings(args.mappingFile, args.mappingUrl);
   let mappings = exactMappings(history, mappingData);
 
@@ -283,7 +297,9 @@ async function main(): Promise<void> {
     authMode,
     authenticatedViewer,
     mappingSource: args.mappingFile ?? args.mappingUrl,
-    sources: { jsonLarge: args.jsonLarge, udpMyList: args.udp },
+    sources: args.historyBundle
+      ? { historyBundle: args.historyBundle }
+      : { jsonLarge: args.jsonLarge, udpMyList: args.udp },
     summary: {
       aniDbAnime: history.length,
       aniListEntries: currentList.length,
