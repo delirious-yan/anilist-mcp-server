@@ -1,5 +1,7 @@
 name: AniDB Apply Diagnostic
 
+# Rerun after viewer parsing fix.
+
 on:
   push:
     branches:
