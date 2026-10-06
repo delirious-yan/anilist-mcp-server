@@ -1,5 +1,7 @@
 name: AniDB Migration Dry Run
 
+# Repo-only private-history comparison; intentionally zero AniList mutations.
+
 on:
   workflow_dispatch:
     inputs:
