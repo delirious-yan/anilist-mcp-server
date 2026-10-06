@@ -26,7 +26,7 @@ on:
         type: string
   push:
     branches:
-      - feat/anidb-completed-only-write
+      - ops/anidb-completed-only-apply
     paths:
       - .github/workflows/anidb-completed-only.yml
       - src/anidb-migration-write.ts
@@ -52,9 +52,9 @@ jobs:
     env:
       TARGET_USER: Luciedmeo
       ANIDB_HISTORY_BUNDLE_B64: ${{ secrets.ANIDB_HISTORY_BUNDLE_B64 }}
-      MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'plan' }}
-      ACTIVITY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.activity_mode || 'choose' }}
-      CONFIRMATION: ${{ github.event_name == 'workflow_dispatch' && inputs.confirmation || '' }}
+      MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'apply' }}
+      ACTIVITY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.activity_mode || 'suppress' }}
+      CONFIRMATION: ${{ github.event_name == 'workflow_dispatch' && inputs.confirmation || 'APPLY_COMPLETED_ONLY_130' }}
       LOG_LEVEL: warn
 
     steps:
