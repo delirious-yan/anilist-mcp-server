@@ -7,6 +7,7 @@ export default defineConfig({
     index: "src/index.ts",
     "anidb-migration": "src/anidb-migration.ts",
     "anidb-migration-write": "src/anidb-migration-write.ts",
+    "anidb-target-probe": "src/anidb-target-probe.ts",
   },
   format: ["esm"],
   platform: "node",
