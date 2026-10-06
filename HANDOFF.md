@@ -1,5 +1,12 @@
 # AniDB → AniList Migration Handoff
 
+## Development workflow
+
+- **GitHub/repository is the sole source of truth.** Do not require or depend on a local checkout for project work.
+- All implementation, review, validation, CI, documentation, and migration tooling changes must be performed through the repository and GitHub Actions/remote repo workflows.
+- Do not instruct the user to `git pull`, run local builds/tests, or maintain a local project copy as part of the normal workflow.
+- Any step that appears to require localhost-only execution must be redesigned into a repo-hosted/remote-safe flow before it is treated as a required project step.
+
 ## Purpose
 
 Preserve the current migration plan and verified findings so this project can be resumed later without re-discovery.
