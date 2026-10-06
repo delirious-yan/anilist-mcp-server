@@ -543,13 +543,27 @@ export function buildCompletedHistoricalTargets(
 
     for (const candidate of candidates) {
       const existing = byMediaId.get(candidate.anilistId);
-      if (
-        existing &&
-        (existing.progress !== candidate.progress || existing.anidbId !== candidate.anidbId)
-      ) {
-        throw new Error(
-          `Conflicting completed-history targets for AniList media ${candidate.anilistId}`,
-        );
+      if (existing) {
+        if (existing.progress !== candidate.progress) {
+          throw new Error(
+            `Conflicting completed-history progress for AniList media ${candidate.anilistId}`,
+          );
+        }
+        // Duplicate historical evidence can legitimately converge on the same
+        // AniList media (e.g. an AniDB aggregate plus its separately-listed
+        // component). Keep the stronger direct mapping instead of counting a
+        // second write target for the same AniList entry.
+        const priority: Record<ResolvedMapping["source"], number> = {
+          exact: 4,
+          fallback: 3,
+          split: 2,
+          ignored: 1,
+          unresolved: 0,
+        };
+        if (priority[candidate.mappingSource] > priority[existing.mappingSource]) {
+          byMediaId.set(candidate.anilistId, candidate);
+        }
+        continue;
       }
       byMediaId.set(candidate.anilistId, candidate);
     }
