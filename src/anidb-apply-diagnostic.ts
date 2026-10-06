@@ -96,13 +96,15 @@ async function main(): Promise<void> {
   const client = new AniListClient(config, createLogger(config.logLevel));
   if (!config.auth.accessToken) throw new Error("ANILIST_ACCESS_TOKEN is required");
 
-  const viewer = ViewerSchema.parse(
-    await client
-      .ctx()
-      .gql.request<unknown>("query{Viewer{name}}", {}, client.ctx().requireAuth(), {
-        skipCache: true,
-      }),
-  ).name;
+  const viewer = z
+    .object({ Viewer: ViewerSchema })
+    .parse(
+      await client
+        .ctx()
+        .gql.request<unknown>("query{Viewer{name}}", {}, client.ctx().requireAuth(), {
+          skipCache: true,
+        }),
+    ).Viewer.name;
   if (viewer !== "Luciedmeo") throw new Error(`Unexpected viewer: ${viewer}`);
 
   const mappings = await resolveMigrationMappings(client, history, {
