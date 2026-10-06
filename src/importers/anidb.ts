@@ -159,6 +159,13 @@ export interface AniListListEntry {
   title: string;
 }
 
+export interface CompletedHistoricalTarget {
+  anidbId: number;
+  anilistId: number;
+  progress: number;
+  mappingSource: ResolvedMapping["source"];
+}
+
 export interface MigrationComparison {
   anidbId: number;
   anilistId?: number;
@@ -501,6 +508,68 @@ export function parseCompactAniListRows(rows: string): AniListListEntry[] {
       title: cells.slice(6).join("\t"),
     };
   });
+}
+
+export function buildCompletedHistoricalTargets(
+  history: AniDbHistory[],
+  resolved: ResolvedMapping[],
+): CompletedHistoricalTarget[] {
+  const mappingByAniDb = new Map(resolved.map((item) => [item.anidbId, item]));
+  const byMediaId = new Map<number, CompletedHistoricalTarget>();
+
+  for (const item of history) {
+    if (item.watchState !== "completed") continue;
+    const mapping = mappingByAniDb.get(item.anidbId);
+    if (!mapping || mapping.source === "ignored" || mapping.source === "unresolved") continue;
+
+    const candidates =
+      mapping.source === "split"
+        ? (mapping.splitParts ?? []).map((part) => ({
+            anidbId: item.anidbId,
+            anilistId: part.anilistId,
+            progress: part.episodes,
+            mappingSource: mapping.source,
+          }))
+        : mapping.anilistId
+          ? [
+              {
+                anidbId: item.anidbId,
+                anilistId: mapping.anilistId,
+                progress: item.totalEpisodes || item.watchedNormalEpisodes,
+                mappingSource: mapping.source,
+              },
+            ]
+          : [];
+
+    for (const candidate of candidates) {
+      const existing = byMediaId.get(candidate.anilistId);
+      if (existing) {
+        if (existing.progress !== candidate.progress) {
+          throw new Error(
+            `Conflicting completed-history progress for AniList media ${candidate.anilistId}`,
+          );
+        }
+        // Duplicate historical evidence can legitimately converge on the same
+        // AniList media (e.g. an AniDB aggregate plus its separately-listed
+        // component). Keep the stronger direct mapping instead of counting a
+        // second write target for the same AniList entry.
+        const priority: Record<ResolvedMapping["source"], number> = {
+          exact: 4,
+          fallback: 3,
+          split: 2,
+          ignored: 1,
+          unresolved: 0,
+        };
+        if (priority[candidate.mappingSource] > priority[existing.mappingSource]) {
+          byMediaId.set(candidate.anilistId, candidate);
+        }
+        continue;
+      }
+      byMediaId.set(candidate.anilistId, candidate);
+    }
+  }
+
+  return [...byMediaId.values()].sort((a, b) => a.anilistId - b.anilistId);
 }
 
 export function compareMigration(

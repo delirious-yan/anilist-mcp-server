@@ -4,28 +4,25 @@ import { gunzipSync } from "node:zlib";
 import { z } from "zod";
 import { loadConfig } from "./config.js";
 import { AniListClient } from "./clients/anilist.js";
-import { getUserList } from "./clients/anilist/list.js";
-import { searchMedia } from "./clients/anilist/search.js";
 import { getAuthorizedUser } from "./clients/anilist/user.js";
 import { createLogger } from "./lib/logger.js";
 import {
-  applyCuratedMappingOverrides,
   buildAniDbHistory,
-  chooseFallbackMatch,
   compareMigration,
-  exactMappings,
-  parseCompactAniListRows,
   parseHistoryBundle,
-  parseIdMappings,
   parseJsonLarge,
-  parseSearchCandidates,
   parseUdpMyList,
-  type AniDbHistory,
-  type ResolvedMapping,
 } from "./importers/anidb.js";
-
-const DEFAULT_MAPPING_URL =
-  "https://raw.githubusercontent.com/anime-and-manga/lists/06a316a574937d009a4dd2db65a4d0972d53c2de/anime.json";
+import {
+  DEFAULT_MAPPING_URL,
+  completedTargetFingerprint,
+  completedTargetsAndFingerprint,
+  countBy,
+  currentListSnapshotFingerprint,
+  fetchWholeAnimeList,
+  missingCompletedTargets,
+  resolveMigrationMappings,
+} from "./importers/anidbRuntime.js";
 
 const ViewerSchema = z.object({ name: z.string().min(1) }).loose();
 
@@ -161,88 +158,6 @@ function readExportText(path: string, memberName: string): string {
   return bytes.toString("utf8");
 }
 
-async function loadMappings(mappingFile: string | undefined, mappingUrl: string) {
-  if (mappingFile) {
-    return parseIdMappings(JSON.parse(readFileSync(mappingFile, "utf8")) as unknown);
-  }
-
-  const response = await fetch(mappingUrl, { signal: AbortSignal.timeout(20_000) });
-  if (!response.ok) {
-    throw new Error(`Mapping download failed: HTTP ${response.status}`);
-  }
-  return parseIdMappings(await response.json());
-}
-
-async function fetchWholeAnimeList(client: AniListClient, user: string) {
-  const rows: string[] = [];
-  let chunk = 1;
-  for (;;) {
-    const result = await getUserList(client.ctx(), "ANIME", user, {
-      format: "compact",
-      chunk,
-      perChunk: 5000,
-    });
-    if (result.format !== "compact") throw new Error("Expected compact AniList response");
-    if (result.rows) rows.push(result.rows);
-    if (!result.hasNextChunk) break;
-    chunk += 1;
-  }
-  return parseCompactAniListRows(rows.join("\n"));
-}
-
-async function resolveFallbackMappings(
-  client: AniListClient,
-  history: AniDbHistory[],
-  mappings: ResolvedMapping[],
-): Promise<ResolvedMapping[]> {
-  const historyById = new Map(history.map((item) => [item.anidbId, item]));
-  const resolved: ResolvedMapping[] = [];
-
-  for (const mapping of mappings) {
-    if (mapping.anilistId) {
-      resolved.push(mapping);
-      continue;
-    }
-
-    const item = historyById.get(mapping.anidbId);
-    if (!item) {
-      resolved.push(mapping);
-      continue;
-    }
-
-    const term = item.englishTitle || item.title;
-    const page = await searchMedia(client.ctx(), "ANIME", { term, perPage: 5 });
-    const choice = chooseFallbackMatch(item, parseSearchCandidates(page));
-
-    if (choice.match) {
-      resolved.push({
-        anidbId: item.anidbId,
-        anilistId: choice.match.id,
-        source: "fallback",
-        confidence: choice.match.score,
-        candidates: choice.candidates,
-      });
-    } else {
-      resolved.push({
-        anidbId: item.anidbId,
-        source: "unresolved",
-        candidates: choice.candidates,
-      });
-    }
-  }
-
-  return resolved;
-}
-
-function countBy<T>(items: T[], key: (item: T) => string): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const item of items) {
-    const value = key(item);
-    counts[value] = (counts[value] ?? 0) + 1;
-  }
-  return counts;
-}
-
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
@@ -265,9 +180,6 @@ async function main(): Promise<void> {
         parseJsonLarge(readExportText(args.jsonLarge!, "mylist.json")),
         parseUdpMyList(readExportText(args.udp!, "mylist.txt")),
       );
-  const mappingData = await loadMappings(args.mappingFile, args.mappingUrl);
-  let mappings = exactMappings(history, mappingData);
-
   const config = loadConfig();
   const logger = createLogger(config.logLevel);
   const client = new AniListClient(config, logger);
@@ -285,10 +197,18 @@ async function main(): Promise<void> {
     authMode = "authenticated";
   }
 
-  if (!args.skipFallback) mappings = await resolveFallbackMappings(client, history, mappings);
-  mappings = applyCuratedMappingOverrides(mappings);
+  const mappings = await resolveMigrationMappings(client, history, {
+    mappingFile: args.mappingFile,
+    mappingUrl: args.mappingUrl,
+    skipFallback: args.skipFallback,
+  });
+  const { targets: completedTargets, fingerprint: completedHistoricalTargetFingerprint } =
+    completedTargetsAndFingerprint(history, mappings);
 
   const currentList = await fetchWholeAnimeList(client, args.user);
+  const currentListFingerprint = currentListSnapshotFingerprint(currentList);
+  const completedOnlyWritePlan = missingCompletedTargets(completedTargets, currentList);
+  const completedOnlyWritePlanFingerprint = completedTargetFingerprint(completedOnlyWritePlan);
   const comparisons = compareMigration(history, mappings, currentList);
 
   const report = {
@@ -308,6 +228,11 @@ async function main(): Promise<void> {
       mappings: countBy(mappings, (item) => item.source),
       watchStates: countBy(history, (item) => item.watchState),
       comparisonCategories: countBy(comparisons, (item) => item.category),
+      completedHistoricalTargets: completedTargets.length,
+      completedHistoricalTargetFingerprint,
+      currentAniListSnapshotFingerprint: currentListFingerprint,
+      completedOnlyWriteActions: completedOnlyWritePlan.length,
+      completedOnlyWritePlanFingerprint,
     },
     mappings,
     comparisons,
@@ -325,6 +250,11 @@ async function main(): Promise<void> {
       `Mappings: ${JSON.stringify(report.summary.mappings)}`,
       `Watch states: ${JSON.stringify(report.summary.watchStates)}`,
       `Comparison: ${JSON.stringify(report.summary.comparisonCategories)}`,
+      `Completed target set: ${report.summary.completedHistoricalTargets}`,
+      `Completed target fingerprint: ${report.summary.completedHistoricalTargetFingerprint}`,
+      `Current AniList snapshot fingerprint: ${report.summary.currentAniListSnapshotFingerprint}`,
+      `Completed-only write actions: ${report.summary.completedOnlyWriteActions}`,
+      `Completed-only write plan fingerprint: ${report.summary.completedOnlyWritePlanFingerprint}`,
       `Writes applied: ${report.writesApplied}`,
       args.output ? `Report: ${args.output}` : "Use --output <file> to save the full report.",
     ].join("\n") + "\n",

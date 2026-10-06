@@ -222,11 +222,21 @@ Dry-run review status:
 - Detailed review and proposed first-write policy: `docs/anidb-migration-review.md`.
 - Current head CI passed on Node 20/22/24, including build, tests, lint, formatting, coverage, MCPB validation, production audit, and dependency-signature verification.
 
-Current execution gate:
+Completed-only write phase:
 
-1. Obtain **explicit user approval after this dry-run review** for the completed-only first write policy.
-2. Only then implement the authenticated repo-hosted write workflow.
-3. The write workflow must re-fetch AniList immediately before mutation, preserve existing/newer AniList data, skip partial/unwatched/unknown history, and default to no historical date/score writes.
+- User approval: **granted 2026-10-06**.
+- Write implementation branch: `feat/anidb-completed-only-write`.
+- Repo-hosted plan run `37471359927`: **successful, zero writes**.
+- Fingerprinted Completed target set: **132 unique AniList media targets**.
+- Fingerprinted reviewed write plan: **130 missing entries**.
+- Exact apply confirmation: `APPLY_COMPLETED_ONLY_130`.
+- Apply preserves every existing AniList entry, writes no scores/dates, excludes all partial/unwatched/unknown history, probes each media immediately before mutation, verifies every creation, and rolls back a newly-created entry if verification fails.
+- Apply is locked to authenticated AniList user `Luciedmeo` and the reviewed target/snapshot/plan fingerprints.
+- The only remaining account-side prerequisites are a repo-safe AniList access token in GitHub secret `ANILIST_ACCESS_TOKEN` and an explicit activity-feed choice (`suppress` or `preserve`) at workflow dispatch.
+
+The initial 131-action estimate was based on source-record comparison output.
+The dedicated write planner deduplicates historical evidence by AniList media ID,
+which is why the reviewed executable plan contains **130** unique missing entries.
 
 ## Resume point
 
@@ -236,6 +246,7 @@ When continuing:
 2. PR #1 contains a fully working repo-hosted read-only migration flow; CI is green.
 3. The private AniDB history secret is configured and the successful reviewed dry-run is run `37466671602`.
 4. Read `docs/anidb-migration-review.md` for the current reviewed migration result and recommended completed-only policy.
-5. Do **not** implement or execute AniList writes until the user explicitly approves that post-review policy.
-6. After approval, obtain/store a repo-safe `ANILIST_ACCESS_TOKEN`, implement a fresh-compare/staged write workflow, and preserve all existing/newer AniList data.
-7. Keep the 42 partial-history entries out of the first write pass unless the user separately decides how they should be represented.
+5. The completed-only policy is approved. Use branch `feat/anidb-completed-only-write` and verified plan run `37471359927`.
+6. Before apply, store a repo-safe `ANILIST_ACCESS_TOKEN` and choose whether the 130 imported completions should suppress or preserve AniList feed activity.
+7. Run only the guarded workflow `.github/workflows/anidb-completed-only.yml` in `apply` mode with confirmation `APPLY_COMPLETED_ONLY_130`.
+8. Keep the 42 partial-history entries out of this first write pass unless the user separately decides how they should be represented.

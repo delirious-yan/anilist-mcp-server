@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   applyCuratedMappingOverrides,
   buildAniDbHistory,
+  buildCompletedHistoricalTargets,
   chooseFallbackMatch,
   compareMigration,
   exactMappings,
@@ -219,6 +220,91 @@ test("compareMigration proposes both AniList entries for the completed Gintama s
   assert.deepEqual(comparisons[0]!.proposedSplitChanges, [
     { anilistId: 97889, status: "COMPLETED", progress: 12 },
     { anilistId: 99714, status: "COMPLETED", progress: 13 },
+  ]);
+});
+
+test("completed historical targets are current-list independent and include split parts", () => {
+  const history = [
+    {
+      anidbId: 1,
+      title: "Complete",
+      type: "TV Series",
+      totalEpisodes: 12,
+      ownedNormalEpisodes: 12,
+      watchedNormalEpisodes: 12,
+      fullyWatched: true,
+      allOwnedNormalWatched: true,
+      watchState: "completed" as const,
+    },
+    {
+      anidbId: 13263,
+      title: "Gintama. (2017)",
+      type: "TV Series",
+      totalEpisodes: 25,
+      ownedNormalEpisodes: 25,
+      watchedNormalEpisodes: 25,
+      fullyWatched: true,
+      allOwnedNormalWatched: true,
+      watchState: "completed" as const,
+    },
+    {
+      anidbId: 2,
+      title: "Partial",
+      type: "TV Series",
+      totalEpisodes: 24,
+      ownedNormalEpisodes: 12,
+      watchedNormalEpisodes: 11,
+      fullyWatched: false,
+      allOwnedNormalWatched: false,
+      watchState: "partial" as const,
+    },
+  ];
+  const mappings = applyCuratedMappingOverrides([
+    { anidbId: 1, anilistId: 101, source: "exact" },
+    { anidbId: 13263, source: "unresolved" },
+    { anidbId: 2, anilistId: 102, source: "exact" },
+  ]);
+
+  assert.deepEqual(buildCompletedHistoricalTargets(history, mappings), [
+    { anidbId: 1, anilistId: 101, progress: 12, mappingSource: "exact" },
+    { anidbId: 13263, anilistId: 97889, progress: 12, mappingSource: "split" },
+    { anidbId: 13263, anilistId: 99714, progress: 13, mappingSource: "split" },
+  ]);
+});
+
+test("completed target derivation dedupes aggregate evidence that converges on one AniList entry", () => {
+  const history = [
+    {
+      anidbId: 12419,
+      title: "Direct",
+      type: "TV Series",
+      totalEpisodes: 12,
+      ownedNormalEpisodes: 12,
+      watchedNormalEpisodes: 12,
+      fullyWatched: true,
+      allOwnedNormalWatched: true,
+      watchState: "completed" as const,
+    },
+    {
+      anidbId: 13263,
+      title: "Aggregate",
+      type: "TV Series",
+      totalEpisodes: 25,
+      ownedNormalEpisodes: 25,
+      watchedNormalEpisodes: 25,
+      fullyWatched: true,
+      allOwnedNormalWatched: true,
+      watchState: "completed" as const,
+    },
+  ];
+  const mappings = applyCuratedMappingOverrides([
+    { anidbId: 12419, anilistId: 97889, source: "exact" },
+    { anidbId: 13263, source: "unresolved" },
+  ]);
+
+  assert.deepEqual(buildCompletedHistoricalTargets(history, mappings), [
+    { anidbId: 12419, anilistId: 97889, progress: 12, mappingSource: "exact" },
+    { anidbId: 13263, anilistId: 99714, progress: 13, mappingSource: "split" },
   ]);
 });
 

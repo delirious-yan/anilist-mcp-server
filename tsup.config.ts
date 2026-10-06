@@ -3,7 +3,11 @@ import { defineConfig } from "tsup";
 // Produces self-contained ESM bundles for the MCP server and the local AniDB
 // dry-run CLI, with runtime dependencies inlined so neither needs node_modules.
 export default defineConfig({
-  entry: { index: "src/index.ts", "anidb-migration": "src/anidb-migration.ts" },
+  entry: {
+    index: "src/index.ts",
+    "anidb-migration": "src/anidb-migration.ts",
+    "anidb-migration-write": "src/anidb-migration-write.ts",
+  },
   format: ["esm"],
   platform: "node",
   target: "node20.11",
