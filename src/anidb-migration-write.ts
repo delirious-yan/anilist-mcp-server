@@ -350,6 +350,10 @@ async function main(): Promise<void> {
 
   const mappings = await resolveMigrationMappings(client, history, {
     mappingUrl: args.mappingUrl,
+    // The reviewed write plan was produced from public AniList search results.
+    // Keep fallback resolution public even when an access token is configured,
+    // otherwise account visibility/preferences can change the mapping set.
+    anonymousFallback: true,
   });
   const { targets, fingerprint: targetFingerprint } = completedTargetsAndFingerprint(
     history,
