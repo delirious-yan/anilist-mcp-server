@@ -191,6 +191,7 @@ export function parseJsonLarge(text: string): AniDbJsonAnime[] {
   } catch (error) {
     throw new Error(
       `Could not parse AniDB json-large export: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
     );
   }
   return JsonLargeSchema.parse(raw).anime;
