@@ -1,0 +1,94 @@
+name: AniDB Activity Suppression Diagnostic
+
+on:
+  push:
+    branches:
+      - ops/anidb-activity-suppress-diagnostic
+    paths:
+      - .github/workflows/anidb-activity-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    env:
+      ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
+
+    steps:
+      - name: Verify token and read activity settings
+        id: read
+        shell: bash
+        run: |
+          if [ -z "$ANILIST_ACCESS_TOKEN" ]; then
+            echo "::error::ANILIST_ACCESS_TOKEN is not configured."
+            exit 1
+          fi
+
+          query='query{Viewer{name options{disabledListActivity{type disabled}}}}'
+          payload="$(jq -nc --arg q "$query" '{query:$q,variables:{}}')"
+
+          code="$(curl -sS -o "$RUNNER_TEMP/viewer.json" -w '%{http_code}'             -X POST https://graphql.anilist.co             -H 'Content-Type: application/json'             -H 'Accept: application/json'             -H "Authorization: Bearer $ANILIST_ACCESS_TOKEN"             --data "$payload")"
+
+          echo "Viewer query HTTP: $code"
+          if [ "$code" != "200" ]; then
+            jq '{errors}' "$RUNNER_TEMP/viewer.json" || true
+            exit 1
+          fi
+
+          viewer="$(jq -r '.data.Viewer.name // empty' "$RUNNER_TEMP/viewer.json")"
+          echo "Viewer: $viewer"
+          if [ "$viewer" != "Luciedmeo" ]; then
+            echo "::error::Authenticated viewer is not Luciedmeo."
+            exit 1
+          fi
+
+          if jq -e '.errors and (.errors|length>0)' "$RUNNER_TEMP/viewer.json" >/dev/null; then
+            jq '{errors}' "$RUNNER_TEMP/viewer.json"
+            exit 1
+          fi
+
+          jq -c '.data.Viewer.options.disabledListActivity // []' "$RUNNER_TEMP/viewer.json"             > "$RUNNER_TEMP/original-options.json"
+          echo "Returned activity-option rows: $(jq 'length' "$RUNNER_TEMP/original-options.json")"
+
+      - name: Round-trip existing activity settings without changing them
+        shell: bash
+        run: |
+          options="$(cat "$RUNNER_TEMP/original-options.json")"
+          mutation='mutation($options:[ListActivityOptionInput]){UpdateUser(disabledListActivity:$options){id}}'
+          payload="$(jq -nc --arg q "$mutation" --argjson opts "$options"             '{query:$q,variables:{options:$opts}}')"
+
+          code="$(curl -sS -o "$RUNNER_TEMP/update.json" -w '%{http_code}'             -X POST https://graphql.anilist.co             -H 'Content-Type: application/json'             -H 'Accept: application/json'             -H "Authorization: Bearer $ANILIST_ACCESS_TOKEN"             --data "$payload")"
+
+          echo "UpdateUser round-trip HTTP: $code"
+          if [ "$code" != "200" ]; then
+            jq '{errors}' "$RUNNER_TEMP/update.json" || true
+            exit 1
+          fi
+
+          if jq -e '.errors and (.errors|length>0)' "$RUNNER_TEMP/update.json" >/dev/null; then
+            jq '{errors}' "$RUNNER_TEMP/update.json"
+            exit 1
+          fi
+
+          echo "UpdateUser round-trip succeeded."
+
+      - name: Verify activity settings still match
+        shell: bash
+        run: |
+          query='query{Viewer{name options{disabledListActivity{type disabled}}}}'
+          payload="$(jq -nc --arg q "$query" '{query:$q,variables:{}}')"
+          code="$(curl -sS -o "$RUNNER_TEMP/after.json" -w '%{http_code}'             -X POST https://graphql.anilist.co             -H 'Content-Type: application/json'             -H 'Accept: application/json'             -H "Authorization: Bearer $ANILIST_ACCESS_TOKEN"             --data "$payload")"
+
+          echo "Verification query HTTP: $code"
+          [ "$code" = "200" ] || exit 1
+
+          jq -c '.data.Viewer.options.disabledListActivity // []' "$RUNNER_TEMP/after.json"             > "$RUNNER_TEMP/after-options.json"
+
+          if ! diff -u "$RUNNER_TEMP/original-options.json" "$RUNNER_TEMP/after-options.json"; then
+            echo "::error::Activity settings changed during no-op round-trip."
+            exit 1
+          fi
+
+          echo "Activity settings unchanged."
