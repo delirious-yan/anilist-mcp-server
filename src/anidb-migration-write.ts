@@ -377,6 +377,12 @@ async function main(): Promise<void> {
         `Current AniList snapshot fingerprint: ${snapshotFingerprint}`,
         `Write actions: ${plan.actions.length}`,
         `Write plan fingerprint: ${actionFingerprint}`,
+        `Existing target entries: ${plan.existingTargetEntries.length}`,
+        `Existing target mismatches: ${plan.existingTargetEntries.filter((entry) => {
+          const target = targets.find((item) => item.anilistId === entry.mediaId);
+          return !target || entry.status !== "COMPLETED" || entry.progress !== target.progress;
+        }).length}`,
+        `Non-target AniList entries: ${plan.nonTargetEntries.length}`,
         "Writes applied: 0",
       ].join("\n") + "\n",
     );
