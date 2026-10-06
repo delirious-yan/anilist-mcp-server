@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
-// Produces a single self-contained ESM bundle at dist/index.js with all
-// dependencies inlined, so the .mcpb bundle (and npx) need no node_modules.
+// Produces self-contained ESM bundles for the MCP server and the local AniDB
+// dry-run CLI, with runtime dependencies inlined so neither needs node_modules.
 export default defineConfig({
   entry: { index: "src/index.ts", "anidb-migration": "src/anidb-migration.ts" },
   format: ["esm"],
