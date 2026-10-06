@@ -213,21 +213,29 @@ Validation status:
 - The repo-hosted migration workflow itself was created successfully and its first run stopped exactly at the expected secret gate because `ANIDB_HISTORY_BUNDLE_B64` has not yet been configured.
 - No AniList writes have occurred.
 
+Dry-run review status:
+
+- Repository secret `ANIDB_HISTORY_BUNDLE_B64`: **configured**.
+- Repo-hosted dry-run run `37466671602`: **successful**.
+- Result: 196 exact mappings, 10 high-confidence fallbacks, 1 curated split mapping, 1 curated no-op aggregate, **0 unresolved mappings**, and **0 writes**.
+- Comparison: 129 ordinary missing Completed candidates, 1 Gintama split Completed candidate (2 AniList entries), 42 partial-history entries, 32 unwatched/unknown no-write entries, and 3 already-Completed overlaps.
+- Detailed review and proposed first-write policy: `docs/anidb-migration-review.md`.
+- Current head CI passed on Node 20/22/24, including build, tests, lint, formatting, coverage, MCPB validation, production audit, and dependency-signature verification.
+
 Current execution gate:
 
-1. Add the private normalized bundle as repository secret `ANIDB_HISTORY_BUNDLE_B64`.
-2. Rerun the existing AniDB Migration Dry Run workflow from GitHub.
-3. Retrieve/decrypt and review the detailed report.
-4. Only after review, define a separate explicitly approved write phase.
+1. Obtain **explicit user approval after this dry-run review** for the completed-only first write policy.
+2. Only then implement the authenticated repo-hosted write workflow.
+3. The write workflow must re-fetch AniList immediately before mutation, preserve existing/newer AniList data, skip partial/unwatched/unknown history, and default to no historical date/score writes.
 
 ## Resume point
 
 When continuing:
 
 1. Treat GitHub as the sole project workspace/source of truth.
-2. Confirm PR #1 CI is green.
-3. Confirm `ANIDB_HISTORY_BUNDLE_B64` exists as a GitHub Actions repository secret.
-4. Rerun the repo-hosted AniDB Migration Dry Run workflow; no local execution is required.
-5. Review the encrypted dry-run report and resolve ambiguous mappings/conflicts.
-6. Decide the final merge/write policy only after the report is reviewed.
-7. If writes are later approved, use a repo-safe AniList access-token flow and explicit write authorization.
+2. PR #1 contains a fully working repo-hosted read-only migration flow; CI is green.
+3. The private AniDB history secret is configured and the successful reviewed dry-run is run `37466671602`.
+4. Read `docs/anidb-migration-review.md` for the current reviewed migration result and recommended completed-only policy.
+5. Do **not** implement or execute AniList writes until the user explicitly approves that post-review policy.
+6. After approval, obtain/store a repo-safe `ANILIST_ACCESS_TOKEN`, implement a fresh-compare/staged write workflow, and preserve all existing/newer AniList data.
+7. Keep the 42 partial-history entries out of the first write pass unless the user separately decides how they should be represented.
