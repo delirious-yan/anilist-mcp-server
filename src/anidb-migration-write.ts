@@ -191,12 +191,7 @@ async function probeAuthenticatedListEntry(
   const query = `query($id:Int){Media(id:$id,type:ANIME){
     mediaListEntry{id status progress startedAt{year month day} completedAt{year month day}}
   }}`;
-  const data = await ctx.gql.request<unknown>(
-    query,
-    { id: mediaId },
-    header,
-    { skipCache: true },
-  );
+  const data = await ctx.gql.request<unknown>(query, { id: mediaId }, header, { skipCache: true });
   return ProbeResponseSchema.parse(data).Media?.mediaListEntry ?? null;
 }
 
@@ -220,10 +215,7 @@ async function fetchActivityOptions(client: AniListClient): Promise<ActivityOpti
   return options as ActivityOption[];
 }
 
-async function setActivityOptions(
-  client: AniListClient,
-  options: ActivityOption[],
-): Promise<void> {
+async function setActivityOptions(client: AniListClient, options: ActivityOption[]): Promise<void> {
   const ctx = client.ctx();
   const header = ctx.requireAuth();
   const query = `mutation($options:[ListActivityOptionInput]){
@@ -240,10 +232,7 @@ async function setActivityOptions(
   }
 }
 
-async function rollbackCreatedEntry(
-  client: AniListClient,
-  listEntryId: number,
-): Promise<void> {
+async function rollbackCreatedEntry(client: AniListClient, listEntryId: number): Promise<void> {
   await deleteListEntry(client.ctx(), listEntryId as ListEntryId);
 }
 
@@ -280,7 +269,9 @@ async function createVerifiedCompletedEntry(
 
     if (after.status !== "COMPLETED" || after.progress !== action.progress) {
       await rollbackCreatedEntry(client, after.id);
-      throw new Error("Created entry did not match the approved status/progress and was rolled back");
+      throw new Error(
+        "Created entry did not match the approved status/progress and was rolled back",
+      );
     }
 
     if (hasDate(after.startedAt) || hasDate(after.completedAt)) {
@@ -360,8 +351,10 @@ async function main(): Promise<void> {
   const mappings = await resolveMigrationMappings(client, history, {
     mappingUrl: args.mappingUrl,
   });
-  const { targets, fingerprint: targetFingerprint } =
-    completedTargetsAndFingerprint(history, mappings);
+  const { targets, fingerprint: targetFingerprint } = completedTargetsAndFingerprint(
+    history,
+    mappings,
+  );
   const currentList = await fetchWholeAnimeList(client, args.user);
   const snapshotFingerprint = currentListSnapshotFingerprint(currentList);
   const plan = buildCompletedOnlyWritePlan(targets, currentList);
@@ -429,12 +422,11 @@ async function main(): Promise<void> {
   const viewerName = z
     .object({ Viewer: ViewerSchema })
     .parse(
-      await client.ctx().gql.request<unknown>(
-        "query{Viewer{name}}",
-        {},
-        client.ctx().requireAuth(),
-        { skipCache: true },
-      ),
+      await client
+        .ctx()
+        .gql.request<unknown>("query{Viewer{name}}", {}, client.ctx().requireAuth(), {
+          skipCache: true,
+        }),
     ).Viewer.name;
   if (viewerName !== APPROVED.user) {
     throw new Error(
@@ -499,8 +491,7 @@ async function main(): Promise<void> {
         report.activityPreferencesRestored = true;
       } catch (restoreError) {
         report.activityPreferencesRestored = false;
-        const message =
-          restoreError instanceof Error ? restoreError.message : String(restoreError);
+        const message = restoreError instanceof Error ? restoreError.message : String(restoreError);
         report.error = report.error
           ? `${report.error}; activity preference restore failed: ${message}`
           : `Activity preference restore failed: ${message}`;
@@ -510,7 +501,9 @@ async function main(): Promise<void> {
   }
 
   if (!report.activityPreferencesRestored) {
-    throw new Error("Migration writes completed, but AniList activity preferences were not restored");
+    throw new Error(
+      "Migration writes completed, but AniList activity preferences were not restored",
+    );
   }
 
   const finalList = await fetchWholeAnimeList(client, args.user);
