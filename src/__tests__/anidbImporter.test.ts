@@ -24,8 +24,8 @@ test("parseJsonLarge repairs AniDB's invalid backtick escape", () => {
     }]
   }`);
   assert.equal(anime.length, 1);
-  assert.equal(anime[0].romanjiName, "Shin`yaku");
-  assert.equal(anime[0].totalEpisodes, 2);
+  assert.equal(anime[0]!.romanjiName, "Shin`yaku");
+  assert.equal(anime[0]!.totalEpisodes, 2);
 });
 
 test("parseUdpMyList keeps the fields needed for watched reconstruction", () => {
@@ -69,11 +69,11 @@ test("buildAniDbHistory distinguishes complete, partial and unwatched history", 
 `);
 
   const history = buildAniDbHistory(anime, udp);
-  assert.equal(history[0].watchState, "completed");
-  assert.equal(history[0].watchedNormalEpisodes, 2);
-  assert.equal(history[1].watchState, "partial");
-  assert.equal(history[1].watchedNormalEpisodes, 1);
-  assert.equal(history[2].watchState, "unwatched");
+  assert.equal(history[0]!.watchState, "completed");
+  assert.equal(history[0]!.watchedNormalEpisodes, 2);
+  assert.equal(history[1]!.watchState, "partial");
+  assert.equal(history[1]!.watchedNormalEpisodes, 1);
+  assert.equal(history[2]!.watchState, "unwatched");
 });
 
 test("exactMappings only resolves a unique AniDB to AniList mapping", () => {
@@ -92,8 +92,8 @@ test("exactMappings only resolves a unique AniDB to AniList mapping", () => {
     { idAniDB: 2, idAL: 20 },
     { idAniDB: 2, idAL: 21 },
   ]);
-  assert.deepEqual(resolved[0], { anidbId: 1, anilistId: 10, source: "exact" });
-  assert.deepEqual(resolved[1], { anidbId: 2, source: "unresolved" });
+  assert.deepEqual(resolved[0]!, { anidbId: 1, anilistId: 10, source: "exact" });
+  assert.deepEqual(resolved[1]!, { anidbId: 2, source: "unresolved" });
 });
 
 test("fallback matching requires a strong and clearly better candidate", () => {
@@ -120,11 +120,11 @@ test("parseCompactAniListRows parses the MCP compact TSV shape", () => {
   const rows = parseCompactAniListRows(
     "11\t22\t33\tCURRENT\t8.5\t4\tExample Title\n12\t23\t\tCOMPLETED\t\t12\tOther",
   );
-  assert.deepEqual(rows[0], {
+  assert.deepEqual(rows[0]!, {
     entryId: 11, mediaId: 22, idMal: 33, status: "CURRENT", score: 8.5, progress: 4, title: "Example Title",
   });
-  assert.equal(rows[1].idMal, undefined);
-  assert.equal(rows[1].progress, 12);
+  assert.equal(rows[1]!.idMal, undefined);
+  assert.equal(rows[1]!.progress, 12);
 });
 
 test("compareMigration is conservative and never turns unwatched ownership into completion", () => {
@@ -148,10 +148,10 @@ test("compareMigration is conservative and never turns unwatched ownership into 
     ],
     [],
   );
-  assert.equal(comparisons[0].category, "missing_completed_candidate");
-  assert.equal(comparisons[0].proposedChange?.status, "COMPLETED");
-  assert.equal(comparisons[1].category, "missing_unwatched_history");
-  assert.equal(comparisons[1].proposedChange, undefined);
+  assert.equal(comparisons[0]!.category, "missing_completed_candidate");
+  assert.equal(comparisons[0]!.proposedChange?.status, "COMPLETED");
+  assert.equal(comparisons[1]!.category, "missing_unwatched_history");
+  assert.equal(comparisons[1]!.proposedChange, undefined);
 });
 
 test("compareMigration preserves AniList when it is ahead of AniDB", () => {
@@ -164,6 +164,6 @@ test("compareMigration preserves AniList when it is ahead of AniDB", () => {
     [{ anidbId: 1, anilistId: 101, source: "exact" }],
     [{ entryId: 1, mediaId: 101, status: "CURRENT", progress: 15, title: "Partial" }],
   );
-  assert.equal(comparisons[0].category, "anilist_ahead");
+  assert.equal(comparisons[0]!.category, "anilist_ahead");
   assert.equal(comparisons[0].proposedChange, undefined);
 });
