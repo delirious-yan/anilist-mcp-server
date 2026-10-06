@@ -161,7 +161,7 @@ async function loadMappings(mappingFile: string | undefined, mappingUrl: string)
   if (!response.ok) {
     throw new Error(`Mapping download failed: HTTP ${response.status}`);
   }
-  return parseIdMappings((await response.json()) as unknown);
+  return parseIdMappings(await response.json());
 }
 
 async function fetchWholeAnimeList(client: AniListClient, user: string) {
