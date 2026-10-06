@@ -205,16 +205,23 @@ export function parseUdpMyList(text: string): UdpMyListRecord[] {
     if (!/^\d+\|/.test(line)) continue;
     const fields = line.split("|");
     if (fields.length < 8) throw new Error(`Malformed UDP MyList record on line ${index + 1}`);
+    const field = (position: number): string => {
+      const value = fields[position];
+      if (value === undefined) {
+        throw new Error(`Malformed UDP MyList record on line ${index + 1}`);
+      }
+      return value;
+    };
 
     records.push({
-      lid: parseNonNegativeInt(fields[0], "lid", index + 1),
-      fid: parseNonNegativeInt(fields[1], "fid", index + 1),
-      eid: parseNonNegativeInt(fields[2], "eid", index + 1),
-      aid: parseNonNegativeInt(fields[3], "aid", index + 1),
-      gid: parseNonNegativeInt(fields[4], "gid", index + 1),
-      addedAt: parseNonNegativeInt(fields[5], "date", index + 1),
-      state: parseNonNegativeInt(fields[6], "state", index + 1),
-      viewedAt: parseNonNegativeInt(fields[7], "viewdate", index + 1),
+      lid: parseNonNegativeInt(field(0), "lid", index + 1),
+      fid: parseNonNegativeInt(field(1), "fid", index + 1),
+      eid: parseNonNegativeInt(field(2), "eid", index + 1),
+      aid: parseNonNegativeInt(field(3), "aid", index + 1),
+      gid: parseNonNegativeInt(field(4), "gid", index + 1),
+      addedAt: parseNonNegativeInt(field(5), "date", index + 1),
+      state: parseNonNegativeInt(field(6), "state", index + 1),
+      viewedAt: parseNonNegativeInt(field(7), "viewdate", index + 1),
     });
   }
   return records;
