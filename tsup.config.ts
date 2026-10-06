@@ -3,7 +3,7 @@ import { defineConfig } from "tsup";
 // Produces a single self-contained ESM bundle at dist/index.js with all
 // dependencies inlined, so the .mcpb bundle (and npx) need no node_modules.
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: { index: "src/index.ts", "anidb-migration": "src/anidb-migration.ts" },
   format: ["esm"],
   platform: "node",
   target: "node20.11",
