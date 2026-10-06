@@ -225,8 +225,9 @@ Dry-run review status:
 Completed-only write phase:
 
 - User approval: **granted 2026-10-06**.
-- Write implementation branch: `feat/anidb-completed-only-write`.
+- Guarded completed-only write phase: **merged to `main` via PR #2** at commit `04cb4d11b9a22e50f9c26d8a1b9a34356ac2ab59`.
 - Repo-hosted plan run `37471359927`: **successful, zero writes**.
+- Final PR #2 CI run `37475944878`: **green** on Node 20/22/24; quality, formatting, coverage, MCPB validation, production audit, and dependency-signature verification all passed.
 - Fingerprinted Completed target set: **132 unique AniList media targets**.
 - Fingerprinted reviewed write plan: **130 missing entries**.
 - Exact apply confirmation: `APPLY_COMPLETED_ONLY_130`.
