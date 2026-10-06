@@ -26,12 +26,12 @@ const APPROVED = {
   animeCount: 208,
   completedTargetCount: 132,
   completedTargetFingerprint: "66e27007ee4e4f7b663abe51e69ec097033a1af8fa52890e5fb951c168e6a953",
-  initialAniListEntries: 5,
+  initialAniListEntries: 27,
   initialAniListSnapshotFingerprint:
-    "3e837325c9c11a0a61ffc2c89a947e1826d2a3b24383296eacc0fdda2fb86614",
-  actionCount: 130,
-  actionFingerprint: "9e67e9a289f194ba5b7c4cc882ab5047917abece4fac1262a0d63e7265b15f31",
-  confirmation: "APPLY_COMPLETED_ONLY_130",
+    "0d31a07c448e671a569ea106b4b7e7658c485ff0f6d69d65aa239f77f3208f06",
+  actionCount: 108,
+  actionFingerprint: "2f7125acdb1053773180b21fa1c1962402890d84f181584859eb0f27130ea617",
+  confirmation: "APPLY_COMPLETED_ONLY_108",
 } as const;
 
 const ViewerSchema = z.object({ name: z.string().min(1) }).loose();
