@@ -264,3 +264,22 @@ When continuing:
 - Refreshed snapshot fingerprint: `0d31a07c448e671a569ea106b4b7e7658c485ff0f6d69d65aa239f77f3208f06`
 - Refreshed remaining-plan fingerprint: `2f7125acdb1053773180b21fa1c1962402890d84f181584859eb0f27130ea617`
 - Apply confirmation is now `APPLY_COMPLETED_ONLY_108`.
+
+
+## Completed-only apply blocker: adult-only historical targets
+
+- User-selected activity behavior remains **suppress**, with COMPLETED activity restored and verified after the migration.
+- Authorized apply attempts `37494637027` and `37494848330` applied **zero writes**.
+- The first attempt stopped on a stale confirmation guard; the second stopped on an AniList 404 before any write.
+- Read-only diagnostic run `37496078488` verified the refreshed 108-action baseline and successfully tested suppress/restore behavior.
+- The diagnostic found exactly **5** remaining targets that return AniList HTTP 404 while authenticated:
+  - AniDB `242` → AniList `382`
+  - AniDB `3310` → AniList `1632`
+  - AniDB `2747` → AniList `2445`
+  - AniDB `3126` → AniList `2539`
+  - AniDB `2693` → AniList `3050`
+- All five are adult-only historical titles. AniList's API exposes a `displayAdultContent` account option; the migration must not change that account preference without explicit user approval.
+- Safe choices:
+  1. temporarily enable `displayAdultContent` for the guarded migration, verify the five targets become accessible, then restore the original setting and verify restoration; or
+  2. leave the preference untouched and skip these five, reducing the remaining completed-only pass from 108 to 103 entries.
+- No further write run should execute until the user chooses between those two options.
