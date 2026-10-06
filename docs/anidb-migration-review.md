@@ -85,7 +85,6 @@ It probes each target immediately before mutation, preserves any entry that
 already exists, verifies every created entry, and rolls back a newly-created
 entry if verification fails.
 
-
 ## Refreshed executable baseline after interrupted apply attempts
 
 A later guarded apply attempt detected that the AniList list had changed and
