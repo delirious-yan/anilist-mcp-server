@@ -48,6 +48,18 @@ title-by-title report.
 The report encryption passphrase is derived from the private history bundle
 secret, so the public repository never stores a separate decryption key.
 
+## Mapping determinism
+
+Fallback AniDB → AniList matching is intentionally performed **without** the
+AniList access token, even during an authenticated apply run. This preserves the
+same public-search mapping set that was reviewed and fingerprinted during the
+dry-run.
+
+The access token is used only for account verification, authenticated current
+list reads, activity-preference handling, and mutations. This separation prevents
+AniList account visibility/preferences from changing the approved fallback
+mapping set during a write run.
+
 ## AniList authentication
 
 Authentication is **not required for the first dry-run** because
