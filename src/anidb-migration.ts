@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -11,6 +12,7 @@ import { createLogger } from "./lib/logger.js";
 import {
   applyCuratedMappingOverrides,
   buildAniDbHistory,
+  buildCompletedHistoricalTargets,
   chooseFallbackMatch,
   compareMigration,
   exactMappings,
@@ -288,6 +290,11 @@ async function main(): Promise<void> {
   if (!args.skipFallback) mappings = await resolveFallbackMappings(client, history, mappings);
   mappings = applyCuratedMappingOverrides(mappings);
 
+  const completedTargets = buildCompletedHistoricalTargets(history, mappings);
+  const completedTargetFingerprint = createHash("sha256")
+    .update(completedTargets.map((item) => `${item.anilistId}:${item.progress}`).join("\n"))
+    .digest("hex");
+
   const currentList = await fetchWholeAnimeList(client, args.user);
   const comparisons = compareMigration(history, mappings, currentList);
 
@@ -308,6 +315,8 @@ async function main(): Promise<void> {
       mappings: countBy(mappings, (item) => item.source),
       watchStates: countBy(history, (item) => item.watchState),
       comparisonCategories: countBy(comparisons, (item) => item.category),
+      completedHistoricalTargets: completedTargets.length,
+      completedHistoricalTargetFingerprint: completedTargetFingerprint,
     },
     mappings,
     comparisons,
@@ -325,6 +334,8 @@ async function main(): Promise<void> {
       `Mappings: ${JSON.stringify(report.summary.mappings)}`,
       `Watch states: ${JSON.stringify(report.summary.watchStates)}`,
       `Comparison: ${JSON.stringify(report.summary.comparisonCategories)}`,
+      `Completed target set: ${report.summary.completedHistoricalTargets}`,
+      `Completed target fingerprint: ${report.summary.completedHistoricalTargetFingerprint}`,
       `Writes applied: ${report.writesApplied}`,
       args.output ? `Report: ${args.output}` : "Use --output <file> to save the full report.",
     ].join("\n") + "\n",
