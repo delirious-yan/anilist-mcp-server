@@ -25,7 +25,7 @@ const JsonLargeSchema = z.object({ anime: z.array(JsonAnimeSchema) }).loose();
 
 const MappingSchema = z
   .object({
-    idAniDB: z.coerce.number().int().positive(),
+    idAniDB: z.coerce.number().int().nonnegative(),
     idAL: z.coerce.number().int().positive(),
     idMal: z.coerce.number().int().positive().nullish(),
   })
@@ -329,7 +329,7 @@ export function parseHistoryBundle(value: unknown): AniDbHistory[] {
 }
 
 export function parseIdMappings(value: unknown): IdMapping[] {
-  return MappingListSchema.parse(value);
+  return MappingListSchema.parse(value).filter((mapping) => mapping.idAniDB > 0);
 }
 
 export function exactMappings(history: AniDbHistory[], mappings: IdMapping[]): ResolvedMapping[] {
