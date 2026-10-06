@@ -6,6 +6,7 @@ import {
   compareMigration,
   exactMappings,
   parseCompactAniListRows,
+  parseHistoryBundle,
   parseJsonLarge,
   parseUdpMyList,
 } from "../importers/anidb.js";
@@ -26,6 +27,34 @@ test("parseJsonLarge repairs AniDB's invalid backtick escape", () => {
   assert.equal(anime.length, 1);
   assert.equal(anime[0]!.romanjiName, "Shin`yaku");
   assert.equal(anime[0]!.totalEpisodes, 2);
+});
+
+test("parseHistoryBundle accepts the repo-only normalized private input", () => {
+  const history = parseHistoryBundle({
+    version: 1,
+    source: "AniDB exports",
+    anime: [
+      {
+        anidbId: 100,
+        title: "Example",
+        type: "TV Series",
+        year: 2006,
+        totalEpisodes: 2,
+        ownedNormalEpisodes: 2,
+        watchedNormalEpisodes: 2,
+        firstViewedAt: 1000,
+        lastViewedAt: 2000,
+        firstViewedDate: { year: 2006, month: 1, day: 1 },
+        lastViewedDate: { year: 2006, month: 1, day: 2 },
+        fullyWatched: true,
+        allOwnedNormalWatched: true,
+        watchState: "completed",
+      },
+    ],
+  });
+  assert.equal(history.length, 1);
+  assert.equal(history[0]!.anidbId, 100);
+  assert.equal(history[0]!.watchState, "completed");
 });
 
 test("parseUdpMyList keeps the fields needed for watched reconstruction", () => {
