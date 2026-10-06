@@ -7,6 +7,7 @@ import {
   exactMappings,
   parseCompactAniListRows,
   parseHistoryBundle,
+  parseIdMappings,
   parseJsonLarge,
   parseUdpMyList,
 } from "../importers/anidb.js";
@@ -57,6 +58,14 @@ test("parseHistoryBundle accepts the repo-only normalized private input", () => 
   assert.equal(history[0]!.watchState, "completed");
   assert.equal(history[0]!.firstViewedAt, undefined);
   assert.equal(history[0]!.firstViewedDate, undefined);
+});
+
+test("parseIdMappings ignores dataset rows with no AniDB ID", () => {
+  const mappings = parseIdMappings([
+    { idAniDB: 0, idAL: 1, idMal: 1 },
+    { idAniDB: 100, idAL: 200, idMal: 300 },
+  ]);
+  assert.deepEqual(mappings, [{ idAniDB: 100, idAL: 200, idMal: 300 }]);
 });
 
 test("parseUdpMyList keeps the fields needed for watched reconstruction", () => {
