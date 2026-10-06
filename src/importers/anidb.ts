@@ -95,6 +95,36 @@ export interface AniDbHistory {
   watchState: "completed" | "partial" | "unwatched" | "unknown";
 }
 
+const FuzzyDateSchema = z.object({
+  year: z.number().int().positive(),
+  month: z.number().int().min(1).max(12),
+  day: z.number().int().min(1).max(31),
+});
+
+const AniDbHistorySchema = z.object({
+  anidbId: z.number().int().positive(),
+  title: z.string().min(1),
+  englishTitle: z.string().min(1).optional(),
+  type: z.string(),
+  year: z.number().int().positive().optional(),
+  totalEpisodes: z.number().int().nonnegative(),
+  ownedNormalEpisodes: z.number().int().nonnegative(),
+  watchedNormalEpisodes: z.number().int().nonnegative(),
+  firstViewedAt: z.number().int().positive().optional(),
+  lastViewedAt: z.number().int().positive().optional(),
+  firstViewedDate: FuzzyDateSchema.optional(),
+  lastViewedDate: FuzzyDateSchema.optional(),
+  fullyWatched: z.boolean(),
+  allOwnedNormalWatched: z.boolean(),
+  watchState: z.enum(["completed", "partial", "unwatched", "unknown"]),
+});
+
+const AniDbHistoryBundleSchema = z.object({
+  version: z.literal(1),
+  source: z.string().optional(),
+  anime: z.array(AniDbHistorySchema),
+});
+
 export interface FallbackCandidate {
   id: number;
   score: number;
@@ -284,6 +314,10 @@ export function buildAniDbHistory(
       watchState,
     };
   });
+}
+
+export function parseHistoryBundle(value: unknown): AniDbHistory[] {
+  return AniDbHistoryBundleSchema.parse(value).anime;
 }
 
 export function parseIdMappings(value: unknown): IdMapping[] {
