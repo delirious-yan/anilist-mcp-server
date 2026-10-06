@@ -84,3 +84,29 @@ reviewed counts/fingerprints, and the exact AniList snapshot before writing.
 It probes each target immediately before mutation, preserves any entry that
 already exists, verifies every created entry, and rolls back a newly-created
 entry if verification fails.
+
+
+## Refreshed executable baseline after interrupted apply attempts
+
+A later guarded apply attempt detected that the AniList list had changed and
+refused to write. A repo-hosted read-only refresh run then re-reviewed the
+current state before continuing.
+
+Refresh plan run: `37484756413`
+
+- Current AniList entries: **27**
+- Existing completed-history target entries: **24**
+- Existing target mismatches: **0**
+- Non-target AniList entries: **3**
+- Remaining missing Completed targets: **108**
+- Completed target fingerprint remains:
+  `66e27007ee4e4f7b663abe51e69ec097033a1af8fa52890e5fb951c168e6a953`
+- Refreshed AniList snapshot fingerprint:
+  `0d31a07c448e671a569ea106b4b7e7658c485ff0f6d69d65aa239f77f3208f06`
+- Refreshed remaining-write fingerprint:
+  `2f7125acdb1053773180b21fa1c1962402890d84f181584859eb0f27130ea617`
+- New exact confirmation phrase: `APPLY_COMPLETED_ONLY_108`
+
+The refresh confirmed that every already-present completed-history target matches
+the approved Completed status/progress. No corrective overwrite is required.
+The user selected **suppressed COMPLETED activity** for the remaining apply pass.
