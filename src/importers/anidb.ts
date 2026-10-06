@@ -159,6 +159,13 @@ export interface AniListListEntry {
   title: string;
 }
 
+export interface CompletedHistoricalTarget {
+  anidbId: number;
+  anilistId: number;
+  progress: number;
+  mappingSource: ResolvedMapping["source"];
+}
+
 export interface MigrationComparison {
   anidbId: number;
   anilistId?: number;
@@ -501,6 +508,54 @@ export function parseCompactAniListRows(rows: string): AniListListEntry[] {
       title: cells.slice(6).join("\t"),
     };
   });
+}
+
+export function buildCompletedHistoricalTargets(
+  history: AniDbHistory[],
+  resolved: ResolvedMapping[],
+): CompletedHistoricalTarget[] {
+  const mappingByAniDb = new Map(resolved.map((item) => [item.anidbId, item]));
+  const byMediaId = new Map<number, CompletedHistoricalTarget>();
+
+  for (const item of history) {
+    if (item.watchState !== "completed") continue;
+    const mapping = mappingByAniDb.get(item.anidbId);
+    if (!mapping || mapping.source === "ignored" || mapping.source === "unresolved") continue;
+
+    const candidates =
+      mapping.source === "split"
+        ? (mapping.splitParts ?? []).map((part) => ({
+            anidbId: item.anidbId,
+            anilistId: part.anilistId,
+            progress: part.episodes,
+            mappingSource: mapping.source,
+          }))
+        : mapping.anilistId
+          ? [
+              {
+                anidbId: item.anidbId,
+                anilistId: mapping.anilistId,
+                progress: item.totalEpisodes || item.watchedNormalEpisodes,
+                mappingSource: mapping.source,
+              },
+            ]
+          : [];
+
+    for (const candidate of candidates) {
+      const existing = byMediaId.get(candidate.anilistId);
+      if (
+        existing &&
+        (existing.progress !== candidate.progress || existing.anidbId !== candidate.anidbId)
+      ) {
+        throw new Error(
+          `Conflicting completed-history targets for AniList media ${candidate.anilistId}`,
+        );
+      }
+      byMediaId.set(candidate.anilistId, candidate);
+    }
+  }
+
+  return [...byMediaId.values()].sort((a, b) => a.anilistId - b.anilistId);
 }
 
 export function compareMigration(
