@@ -15,9 +15,12 @@ import {
 } from "./importers/anidb.js";
 import {
   DEFAULT_MAPPING_URL,
+  completedTargetFingerprint,
   completedTargetsAndFingerprint,
   countBy,
+  currentListSnapshotFingerprint,
   fetchWholeAnimeList,
+  missingCompletedTargets,
   resolveMigrationMappings,
 } from "./importers/anidbRuntime.js";
 
@@ -203,6 +206,9 @@ async function main(): Promise<void> {
     completedTargetsAndFingerprint(history, mappings);
 
   const currentList = await fetchWholeAnimeList(client, args.user);
+  const currentListFingerprint = currentListSnapshotFingerprint(currentList);
+  const completedOnlyWritePlan = missingCompletedTargets(completedTargets, currentList);
+  const completedOnlyWritePlanFingerprint = completedTargetFingerprint(completedOnlyWritePlan);
   const comparisons = compareMigration(history, mappings, currentList);
 
   const report = {
@@ -224,6 +230,9 @@ async function main(): Promise<void> {
       comparisonCategories: countBy(comparisons, (item) => item.category),
       completedHistoricalTargets: completedTargets.length,
       completedHistoricalTargetFingerprint: completedTargetFingerprint,
+      currentAniListSnapshotFingerprint: currentListFingerprint,
+      completedOnlyWriteActions: completedOnlyWritePlan.length,
+      completedOnlyWritePlanFingerprint,
     },
     mappings,
     comparisons,
@@ -243,6 +252,9 @@ async function main(): Promise<void> {
       `Comparison: ${JSON.stringify(report.summary.comparisonCategories)}`,
       `Completed target set: ${report.summary.completedHistoricalTargets}`,
       `Completed target fingerprint: ${report.summary.completedHistoricalTargetFingerprint}`,
+      `Current AniList snapshot fingerprint: ${report.summary.currentAniListSnapshotFingerprint}`,
+      `Completed-only write actions: ${report.summary.completedOnlyWriteActions}`,
+      `Completed-only write plan fingerprint: ${report.summary.completedOnlyWritePlanFingerprint}`,
       `Writes applied: ${report.writesApplied}`,
       args.output ? `Report: ${args.output}` : "Use --output <file> to save the full report.",
     ].join("\n") + "\n",
