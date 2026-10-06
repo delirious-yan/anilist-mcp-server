@@ -1,0 +1,81 @@
+name: AniDB Migration Dry Run
+
+# Repo-only private-history comparison; intentionally zero AniList mutations.
+# Mapping dataset rows without an AniDB ID are filtered by the importer.
+# Curated split/aggregate overrides are applied before comparison.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_user:
+        description: AniList username to compare
+        required: true
+        default: Luciedmeo
+        type: string
+  push:
+    branches:
+      - feat/anidb-migration-dry-run
+    paths:
+      - .github/workflows/anidb-dry-run.yml
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_USER: ${{ inputs.target_user || 'Luciedmeo' }}
+      ANIDB_HISTORY_BUNDLE_B64: ${{ secrets.ANIDB_HISTORY_BUNDLE_B64 }}
+      ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
+      LOG_LEVEL: warn
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Decode private AniDB history bundle
+        shell: bash
+        run: |
+          if [ -z "$ANIDB_HISTORY_BUNDLE_B64" ]; then
+            echo "::error::Repository secret ANIDB_HISTORY_BUNDLE_B64 is not configured."
+            exit 1
+          fi
+
+          printf '%s' "$ANIDB_HISTORY_BUNDLE_B64" |
+            base64 --decode |
+            gzip -dc > "$RUNNER_TEMP/anidb-history.json"
+
+          jq -e '.version == 1 and (.anime | type == "array")'             "$RUNNER_TEMP/anidb-history.json" >/dev/null
+
+      - name: Run read-only AniDB to AniList comparison
+        shell: bash
+        run: |
+          node dist/anidb-migration.js             --history-bundle "$RUNNER_TEMP/anidb-history.json"             --user "$TARGET_USER"             --output "$RUNNER_TEMP/anidb-report.json"
+
+      - name: Encrypt detailed migration report
+        shell: bash
+        run: |
+          REPORT_KEY="$(printf '%s' "$ANIDB_HISTORY_BUNDLE_B64" | sha256sum | cut -d' ' -f1)"
+          REPORT_KEY="$REPORT_KEY" openssl enc             -aes-256-cbc             -salt             -pbkdf2             -a             -A             -in "$RUNNER_TEMP/anidb-report.json"             -out "$RUNNER_TEMP/anidb-report.enc.txt"             -pass env:REPORT_KEY
+
+      - name: Upload encrypted report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: anidb-dry-run-report-${{ github.run_id }}
+          path: ${{ runner.temp }}/anidb-report.enc.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove plaintext private data
+        if: always()
+        shell: bash
+        run: |
+          rm -f             "$RUNNER_TEMP/anidb-history.json"             "$RUNNER_TEMP/anidb-report.json"

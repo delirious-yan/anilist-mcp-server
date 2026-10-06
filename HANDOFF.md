@@ -1,5 +1,12 @@
 # AniDB → AniList Migration Handoff
 
+## Development workflow
+
+- **GitHub/repository is the sole source of truth.** Do not require or depend on a local checkout for project work.
+- All implementation, review, validation, CI, documentation, and migration tooling changes must be performed through the repository and GitHub Actions/remote repo workflows.
+- Do not instruct the user to `git pull`, run local builds/tests, or maintain a local project copy as part of the normal workflow.
+- Any step that appears to require localhost-only execution must be redesigned into a repo-hosted/remote-safe flow before it is treated as a required project step.
+
 ## Purpose
 
 Preserve the current migration plan and verified findings so this project can be resumed later without re-discovery.
@@ -78,40 +85,26 @@ The server already talks directly to AniList GraphQL and supports authenticated 
 
 ## Next setup step
 
-Create an AniList developer application.
+The project is repo-only. Do not use a local checkout or localhost OAuth flow.
 
-Use:
+The first real migration comparison now runs through
+`.github/workflows/anidb-dry-run.yml` on a GitHub-hosted runner.
 
-- Redirect URL: `http://localhost:8082/callback`
+Required GitHub repository secret:
 
-Keep the **Client ID** and **Client Secret** local. Never commit either credential.
+- `ANIDB_HISTORY_BUNDLE_B64` — compact gzip+base64 normalized history derived from the two private AniDB exports.
 
-Local working path:
+The raw exports remain outside the public repository. The workflow decodes the
+bundle only in the runner's temporary directory, performs a read-only comparison
+against `Luciedmeo`, encrypts the detailed report, uploads only the encrypted
+artifact, and deletes the plaintext temporary files.
 
-```text
-C:\Users\Ian\Projects\anilist-mcp-server
-```
+OAuth is **not required for the first dry-run** because the current AniList list
+is public. For any later approved write phase, use a browser-only AniList Auth
+Pin flow and store the resulting token as the GitHub Actions secret
+`ANILIST_ACCESS_TOKEN`; do not reintroduce localhost as a project dependency.
 
-Build locally:
-
-```powershell
-cd C:\Users\Ian\Projects\anilist-mcp-server
-npm ci
-npm run build
-```
-
-Then connect the built MCP server to an MCP client and authenticate with AniList using `login_anilist`.
-
-Example Claude Code registration:
-
-```powershell
-claude mcp add anilist `
-  -e ANILIST_CLIENT_ID=YOUR_ID `
-  -e ANILIST_CLIENT_SECRET=YOUR_SECRET `
-  -- node C:\Users\Ian\Projects\anilist-mcp-server\dist\index.js
-```
-
-After registration, run the AniList login flow and confirm the authenticated account is `Luciedmeo`.
+See `docs/anidb-migration.md`.
 
 ## First implementation phase: dry-run only
 
@@ -199,13 +192,50 @@ Do not invent dates when the export does not establish them clearly.
 - If fixtures are needed for tests, create sanitized/minimal samples only.
 - Never commit AniList credentials, access tokens, or OAuth secrets.
 
+## Implementation status
+
+The read-only migration implementation is staged in draft PR #1 on branch
+`feat/anidb-migration-dry-run`.
+
+Implemented:
+
+- `src/importers/anidb.ts`: parses raw AniDB exports, reconstructs watched history, validates normalized private history bundles, performs exact ID mapping, conservative fallback scoring, and comparison logic.
+- `src/anidb-migration.ts`: read-only CLI supporting either raw exports or `--history-bundle`, then comparing against the current AniList list and emitting a JSON report.
+- `src/__tests__/anidbImporter.test.ts`: sanitized synthetic tests, including normalized-history-bundle coverage.
+- `.github/workflows/anidb-dry-run.yml`: repo-hosted GitHub Actions dry-run with private input from `ANIDB_HISTORY_BUNDLE_B64`, zero mutations, encrypted report artifact, and plaintext cleanup.
+- `docs/anidb-migration.md`: repo-only execution/privacy model.
+- No personal AniDB export, normalized bundle, plaintext report, or AniList credential is committed.
+
+Validation status:
+
+- GitHub Actions is enabled.
+- CI run #16 passed on Node 20/22/24 after the repo-only workflow and normalized-bundle changes. Build, tests, lint, formatting, coverage, MCPB validation, production audit, and dependency-signature verification all passed.
+- The repo-hosted migration workflow itself was created successfully and its first run stopped exactly at the expected secret gate because `ANIDB_HISTORY_BUNDLE_B64` has not yet been configured.
+- No AniList writes have occurred.
+
+Dry-run review status:
+
+- Repository secret `ANIDB_HISTORY_BUNDLE_B64`: **configured**.
+- Repo-hosted dry-run run `37466671602`: **successful**.
+- Result: 196 exact mappings, 10 high-confidence fallbacks, 1 curated split mapping, 1 curated no-op aggregate, **0 unresolved mappings**, and **0 writes**.
+- Comparison: 129 ordinary missing Completed candidates, 1 Gintama split Completed candidate (2 AniList entries), 42 partial-history entries, 32 unwatched/unknown no-write entries, and 3 already-Completed overlaps.
+- Detailed review and proposed first-write policy: `docs/anidb-migration-review.md`.
+- Current head CI passed on Node 20/22/24, including build, tests, lint, formatting, coverage, MCPB validation, production audit, and dependency-signature verification.
+
+Current execution gate:
+
+1. Obtain **explicit user approval after this dry-run review** for the completed-only first write policy.
+2. Only then implement the authenticated repo-hosted write workflow.
+3. The write workflow must re-fetch AniList immediately before mutation, preserve existing/newer AniList data, skip partial/unwatched/unknown history, and default to no historical date/score writes.
+
 ## Resume point
 
-When continuing this project:
+When continuing:
 
-1. Confirm the local fork is synced with GitHub.
-2. Create the AniList developer app if not already done.
-3. Authenticate `Luciedmeo` with `login_anilist`.
-4. Implement parser + mapper + dry-run comparison only.
-5. Generate and review the comparison report.
-6. Decide the final merge/write policy only after the dry-run results are visible.
+1. Treat GitHub as the sole project workspace/source of truth.
+2. PR #1 contains a fully working repo-hosted read-only migration flow; CI is green.
+3. The private AniDB history secret is configured and the successful reviewed dry-run is run `37466671602`.
+4. Read `docs/anidb-migration-review.md` for the current reviewed migration result and recommended completed-only policy.
+5. Do **not** implement or execute AniList writes until the user explicitly approves that post-review policy.
+6. After approval, obtain/store a repo-safe `ANILIST_ACCESS_TOKEN`, implement a fresh-compare/staged write workflow, and preserve all existing/newer AniList data.
+7. Keep the 42 partial-history entries out of the first write pass unless the user separately decides how they should be represented.
