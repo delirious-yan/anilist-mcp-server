@@ -224,6 +224,12 @@ npm run anidb:dry-run -- \
 
 The dry-run can read the public AniList list without OAuth. Authenticating first is still preferred because it lets the comparison include any private entries and verifies that the write-capable account is actually `Luciedmeo`.
 
+Validation status:
+
+- Manual/static review has been performed and strict checked-index issues found during review were fixed.
+- The implementation remains in a **draft PR** until a real `npm run build && npm test && npm run lint && npm run format:check` completes.
+- GitHub Actions has not started any run on this fork/PR yet, so CI must **not** be treated as passed. If Actions is disabled on the new fork, enable it in GitHub before merging.
+
 Still requiring user-side/local interaction:
 
 1. Create the AniList developer app with redirect `http://localhost:8082/callback` if it does not already exist.
