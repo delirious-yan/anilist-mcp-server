@@ -228,11 +228,11 @@ Validation status:
 
 - Manual/static review has been performed and strict checked-index issues found during review were fixed.
 - The implementation remains in a **draft PR** until a real `npm run build && npm test && npm run lint && npm run format:check` completes.
-- GitHub Actions has now been enabled on the fork. A fresh branch update is being used to trigger CI; do not treat validation as passed until the workflow run completes successfully.
+- GitHub Actions is enabled and CI run #7 passed on Node 20/22/24. Build, tests, lint, format check, coverage gate, MCPB validation, production audit, and dependency-signature verification all passed.
 
 Still requiring user-side/local interaction:
 
-1. Create the AniList developer app with redirect `http://localhost:8082/callback` if it does not already exist.
+1. AniList developer app: **created** with redirect `http://localhost:8082/callback`.
 2. Keep Client ID/Secret local and authenticate `Luciedmeo` with `login_anilist`.
 3. Run the dry-run against the two private AniDB archives and review the generated report.
 4. Only after review, define/approve a separate write phase. No write phase has been implemented.
