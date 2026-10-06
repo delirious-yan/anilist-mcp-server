@@ -209,8 +209,7 @@ Implemented:
 Validation status:
 
 - GitHub Actions is enabled.
-- CI previously passed on Node 20/22/24.
-- The latest branch changes are being revalidated by CI.
+- CI run #16 passed on Node 20/22/24 after the repo-only workflow and normalized-bundle changes. Build, tests, lint, formatting, coverage, MCPB validation, production audit, and dependency-signature verification all passed.
 - The repo-hosted migration workflow itself was created successfully and its first run stopped exactly at the expected secret gate because `ANIDB_HISTORY_BUNDLE_B64` has not yet been configured.
 - No AniList writes have occurred.
 
