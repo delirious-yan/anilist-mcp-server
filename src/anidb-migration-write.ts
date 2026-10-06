@@ -21,6 +21,7 @@ import {
   type ProbedListEntry,
 } from "./importers/anidbWrite.js";
 
+// Refreshed after read-only plan run 37484756413 verified the current AniList snapshot.
 const APPROVED = {
   user: "Luciedmeo",
   animeCount: 208,
