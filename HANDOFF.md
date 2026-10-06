@@ -252,7 +252,6 @@ When continuing:
 7. Run only the guarded workflow `.github/workflows/anidb-completed-only.yml` in `apply` mode with confirmation `APPLY_COMPLETED_ONLY_130`.
 8. Keep the 42 partial-history entries out of this first write pass unless the user separately decides how they should be represented.
 
-
 ## Refreshed completed-only apply baseline
 
 - User-selected activity behavior: **suppress** COMPLETED feed activity during apply, then restore and verify preferences.
