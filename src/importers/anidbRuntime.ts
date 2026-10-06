@@ -20,10 +20,7 @@ import {
 export const DEFAULT_MAPPING_URL =
   "https://raw.githubusercontent.com/anime-and-manga/lists/06a316a574937d009a4dd2db65a4d0972d53c2de/anime.json";
 
-export async function loadMappings(
-  mappingFile: string | undefined,
-  mappingUrl: string,
-) {
+export async function loadMappings(mappingFile: string | undefined, mappingUrl: string) {
   if (mappingFile) {
     return parseIdMappings(JSON.parse(readFileSync(mappingFile, "utf8")) as unknown);
   }
@@ -115,9 +112,7 @@ export async function resolveMigrationMappings(
   return applyCuratedMappingOverrides(mappings);
 }
 
-export function completedTargetFingerprint(
-  targets: CompletedHistoricalTarget[],
-): string {
+export function completedTargetFingerprint(targets: CompletedHistoricalTarget[]): string {
   return createHash("sha256")
     .update(targets.map((item) => `${item.anilistId}:${item.progress}`).join("\n"))
     .digest("hex");
@@ -134,10 +129,7 @@ export function missingCompletedTargets(
 export function currentListSnapshotFingerprint(currentList: AniListListEntry[]): string {
   const canonical = [...currentList]
     .sort((a, b) => a.mediaId - b.mediaId)
-    .map(
-      (entry) =>
-        `${entry.mediaId}:${entry.status ?? ""}:${entry.progress}:${entry.score ?? ""}`,
-    )
+    .map((entry) => `${entry.mediaId}:${entry.status ?? ""}:${entry.progress}:${entry.score ?? ""}`)
     .join("\n");
   return createHash("sha256").update(canonical).digest("hex");
 }
