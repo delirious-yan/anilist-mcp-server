@@ -419,15 +419,11 @@ async function main(): Promise<void> {
     throw new Error("Apply mode requires ANILIST_ACCESS_TOKEN");
   }
 
-  const viewerName = z
-    .object({ Viewer: ViewerSchema })
-    .parse(
-      await client
-        .ctx()
-        .gql.request<unknown>("query{Viewer{name}}", {}, client.ctx().requireAuth(), {
-          skipCache: true,
-        }),
-    ).Viewer.name;
+  const viewerName = z.object({ Viewer: ViewerSchema }).parse(
+    await client.ctx().gql.request<unknown>("query{Viewer{name}}", {}, client.ctx().requireAuth(), {
+      skipCache: true,
+    }),
+  ).Viewer.name;
   if (viewerName !== APPROVED.user) {
     throw new Error(
       `Authenticated AniList account is ${viewerName}; expected ${APPROVED.user}. No writes applied.`,
