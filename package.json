@@ -51,7 +51,7 @@
     "lint": "eslint . && npm run typecheck:scripts",
     "check:api": "node scripts/check-api.mjs",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format:check": "prettier --write src/__tests__/anidbWrite.test.ts src/anidb-migration-write.ts src/importers/anidbRuntime.ts src/importers/anidbWrite.ts && git diff --exit-code -- src/__tests__/anidbWrite.test.ts src/anidb-migration-write.ts src/importers/anidbRuntime.ts src/importers/anidbWrite.ts",
     "start": "node dist/index.js",
     "inspector": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",
     "anidb:dry-run": "npm run build && node dist/anidb-migration.js",
