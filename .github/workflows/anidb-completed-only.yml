@@ -26,7 +26,7 @@ on:
         type: string
   push:
     branches:
-      - feat/anidb-completed-only-write
+      - ops/anidb-refresh-plan
     paths:
       - .github/workflows/anidb-completed-only.yml
       - src/anidb-migration-write.ts
