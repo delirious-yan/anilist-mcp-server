@@ -15,6 +15,7 @@ on:
   push:
     branches:
       - feat/anidb-migration-dry-run
+      - feat/anidb-completed-only-write
     paths:
       - .github/workflows/anidb-dry-run.yml
 
