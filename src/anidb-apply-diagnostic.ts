@@ -147,19 +147,35 @@ async function main(): Promise<void> {
   process.stdout.write("stage=activity-suppress-test ok\n");
 
   process.stdout.write("stage=probe-all-actions\n");
+  const failures: Array<{
+    index: number;
+    anidbId: number;
+    mediaId: number;
+    error: string;
+  }> = [];
   for (let index = 0; index < plan.actions.length; index += 1) {
     const action = plan.actions[index]!;
     try {
       await probeMedia(client, action.anilistId);
     } catch (error) {
-      throw new Error(
-        `Read-only probe failed at action ${index + 1}/${plan.actions.length}, mediaId=${action.anilistId}: ${error instanceof Error ? error.message : String(error)}`,
-        { cause: error },
+      failures.push({
+        index: index + 1,
+        anidbId: action.anidbId,
+        mediaId: action.anilistId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      process.stdout.write(
+        `probe-failure index=${index + 1} anidbId=${action.anidbId} mediaId=${action.anilistId}\n`,
       );
     }
     if ((index + 1) % 20 === 0 || index + 1 === plan.actions.length) {
       process.stdout.write(`probed=${index + 1}/${plan.actions.length}\n`);
     }
+  }
+  if (failures.length > 0) {
+    throw new Error(
+      `Read-only probe found ${failures.length} invalid/unavailable targets: ${JSON.stringify(failures)}`,
+    );
   }
   process.stdout.write("stage=probe-all-actions ok\n");
 }
