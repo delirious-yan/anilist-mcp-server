@@ -61,9 +61,7 @@ test("current AniList snapshot fingerprint is order-independent", () => {
 });
 
 test("completed target fingerprint changes when approved progress changes", () => {
-  const base = [
-    { anidbId: 1, anilistId: 101, progress: 12, mappingSource: "exact" as const },
-  ];
+  const base = [{ anidbId: 1, anilistId: 101, progress: 12, mappingSource: "exact" as const }];
   const changed = [{ ...base[0]!, progress: 11 }];
 
   assert.notEqual(completedTargetFingerprint(base), completedTargetFingerprint(changed));
