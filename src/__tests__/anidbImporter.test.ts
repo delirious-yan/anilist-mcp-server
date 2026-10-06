@@ -272,6 +272,42 @@ test("completed historical targets are current-list independent and include spli
   ]);
 });
 
+test("completed target derivation dedupes aggregate evidence that converges on one AniList entry", () => {
+  const history = [
+    {
+      anidbId: 12419,
+      title: "Direct",
+      type: "TV Series",
+      totalEpisodes: 12,
+      ownedNormalEpisodes: 12,
+      watchedNormalEpisodes: 12,
+      fullyWatched: true,
+      allOwnedNormalWatched: true,
+      watchState: "completed" as const,
+    },
+    {
+      anidbId: 13263,
+      title: "Aggregate",
+      type: "TV Series",
+      totalEpisodes: 25,
+      ownedNormalEpisodes: 25,
+      watchedNormalEpisodes: 25,
+      fullyWatched: true,
+      allOwnedNormalWatched: true,
+      watchState: "completed" as const,
+    },
+  ];
+  const mappings = applyCuratedMappingOverrides([
+    { anidbId: 12419, anilistId: 97889, source: "exact" },
+    { anidbId: 13263, source: "unresolved" },
+  ]);
+
+  assert.deepEqual(buildCompletedHistoricalTargets(history, mappings), [
+    { anidbId: 12419, anilistId: 97889, progress: 12, mappingSource: "exact" },
+    { anidbId: 13263, anilistId: 99714, progress: 13, mappingSource: "split" },
+  ]);
+});
+
 test("fallback matching requires a strong and clearly better candidate", () => {
   const history = {
     anidbId: 1,
