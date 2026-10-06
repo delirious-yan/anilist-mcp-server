@@ -202,7 +202,7 @@ async function main(): Promise<void> {
     mappingUrl: args.mappingUrl,
     skipFallback: args.skipFallback,
   });
-  const { targets: completedTargets, fingerprint: completedTargetFingerprint } =
+  const { targets: completedTargets, fingerprint: completedHistoricalTargetFingerprint } =
     completedTargetsAndFingerprint(history, mappings);
 
   const currentList = await fetchWholeAnimeList(client, args.user);
@@ -229,7 +229,7 @@ async function main(): Promise<void> {
       watchStates: countBy(history, (item) => item.watchState),
       comparisonCategories: countBy(comparisons, (item) => item.category),
       completedHistoricalTargets: completedTargets.length,
-      completedHistoricalTargetFingerprint: completedTargetFingerprint,
+      completedHistoricalTargetFingerprint,
       currentAniListSnapshotFingerprint: currentListFingerprint,
       completedOnlyWriteActions: completedOnlyWritePlan.length,
       completedOnlyWritePlanFingerprint,
