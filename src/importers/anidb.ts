@@ -134,12 +134,19 @@ export interface FallbackCandidate {
   episodes?: number;
 }
 
+export interface SplitMappingPart {
+  anilistId: number;
+  episodes: number;
+}
+
 export interface ResolvedMapping {
   anidbId: number;
   anilistId?: number;
-  source: "exact" | "fallback" | "unresolved";
+  splitParts?: SplitMappingPart[];
+  source: "exact" | "fallback" | "split" | "ignored" | "unresolved";
   confidence?: number;
   candidates?: FallbackCandidate[];
+  note?: string;
 }
 
 export interface AniListListEntry {
@@ -155,6 +162,7 @@ export interface AniListListEntry {
 export interface MigrationComparison {
   anidbId: number;
   anilistId?: number;
+  anilistIds?: number[];
   title: string;
   mappingSource: ResolvedMapping["source"];
   watchState: AniDbHistory["watchState"];
@@ -164,6 +172,8 @@ export interface MigrationComparison {
   aniListProgress?: number;
   category:
     | "unresolved_mapping"
+    | "ignored_no_watch_evidence"
+    | "split_completed_candidate"
     | "missing_completed_candidate"
     | "missing_partial_history"
     | "missing_unwatched_history"
@@ -178,6 +188,11 @@ export interface MigrationComparison {
     startedAt?: FuzzyDate;
     completedAt?: FuzzyDate;
   };
+  proposedSplitChanges?: Array<{
+    anilistId: number;
+    status: "COMPLETED";
+    progress: number;
+  }>;
   note: string;
 }
 
@@ -346,6 +361,39 @@ export function exactMappings(history: AniDbHistory[], mappings: IdMapping[]): R
   });
 }
 
+export function applyCuratedMappingOverrides(mappings: ResolvedMapping[]): ResolvedMapping[] {
+  return mappings.map((mapping) => {
+    // AniDB 13263 combines both 2017 TV cours into one 25-episode record.
+    // AniList splits them into Gintama. (12 eps, AL 97889) and
+    // Gintama.: Porori-hen (13 eps, AL 99714).
+    if (mapping.anidbId === 13263) {
+      return {
+        anidbId: mapping.anidbId,
+        source: "split",
+        splitParts: [
+          { anilistId: 97889, episodes: 12 },
+          { anilistId: 99714, episodes: 13 },
+        ],
+        confidence: 15,
+        note: "Curated one-to-many split for AniDB's combined 2017 Gintama entry.",
+      };
+    }
+
+    // AniDB 4932 is a seven-film Kara no Kyoukai aggregate while AniList
+    // models the films separately. This historical record carries no watched
+    // evidence, so the safe migration action is to leave it untouched.
+    if (mapping.anidbId === 4932) {
+      return {
+        anidbId: mapping.anidbId,
+        source: "ignored",
+        note: "Aggregate entry with no watched evidence; no AniList write is justified.",
+      };
+    }
+
+    return mapping;
+  });
+}
+
 function normalizeTitle(value: string | null | undefined): string {
   return (value ?? "")
     .normalize("NFKD")
@@ -465,6 +513,77 @@ export function compareMigration(
 
   return history.map((item) => {
     const mapping = mappingByAniDb.get(item.anidbId);
+
+    if (mapping?.source === "ignored") {
+      return {
+        anidbId: item.anidbId,
+        title: item.title,
+        mappingSource: mapping.source,
+        watchState: item.watchState,
+        aniDbProgress: item.watchedNormalEpisodes,
+        aniDbTotalEpisodes: item.totalEpisodes,
+        category: "ignored_no_watch_evidence",
+        note: mapping.note ?? "Curated no-op; no AniList write is justified.",
+      };
+    }
+
+    if (mapping?.source === "split" && mapping.splitParts?.length) {
+      const currentParts = mapping.splitParts.map((part) => ({
+        ...part,
+        current: currentByMedia.get(part.anilistId),
+      }));
+      const allCompleted = currentParts.every((part) => part.current?.status === "COMPLETED");
+
+      if (item.watchState === "completed" && allCompleted) {
+        return {
+          anidbId: item.anidbId,
+          anilistIds: mapping.splitParts.map((part) => part.anilistId),
+          title: item.title,
+          mappingSource: mapping.source,
+          watchState: item.watchState,
+          aniDbProgress: item.watchedNormalEpisodes,
+          aniDbTotalEpisodes: item.totalEpisodes,
+          category: "already_completed",
+          note: "All AniList split entries are already Completed. Preserve them.",
+        };
+      }
+
+      if (item.watchState === "completed") {
+        return {
+          anidbId: item.anidbId,
+          anilistIds: mapping.splitParts.map((part) => part.anilistId),
+          title: item.title,
+          mappingSource: mapping.source,
+          watchState: item.watchState,
+          aniDbProgress: item.watchedNormalEpisodes,
+          aniDbTotalEpisodes: item.totalEpisodes,
+          category: "split_completed_candidate",
+          proposedSplitChanges: currentParts
+            .filter((part) => part.current?.status !== "COMPLETED")
+            .map((part) => ({
+              anilistId: part.anilistId,
+              status: "COMPLETED" as const,
+              progress: part.episodes,
+            })),
+          note:
+            mapping.note ??
+            "AniDB aggregate maps to multiple AniList entries. Review the split before any write.",
+        };
+      }
+
+      return {
+        anidbId: item.anidbId,
+        anilistIds: mapping.splitParts.map((part) => part.anilistId),
+        title: item.title,
+        mappingSource: mapping.source,
+        watchState: item.watchState,
+        aniDbProgress: item.watchedNormalEpisodes,
+        aniDbTotalEpisodes: item.totalEpisodes,
+        category: "unresolved_mapping",
+        note: "Split mapping exists, but watched state is not strong enough for an automatic proposal.",
+      };
+    }
+
     if (!mapping?.anilistId) {
       return {
         anidbId: item.anidbId,
