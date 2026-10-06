@@ -1,7 +1,4 @@
-import type {
-  AniListListEntry,
-  CompletedHistoricalTarget,
-} from "./anidb.js";
+import type { AniListListEntry, CompletedHistoricalTarget } from "./anidb.js";
 
 export interface CompletedOnlyWritePlan {
   targets: CompletedHistoricalTarget[];
