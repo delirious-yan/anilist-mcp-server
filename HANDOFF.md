@@ -199,6 +199,38 @@ Do not invent dates when the export does not establish them clearly.
 - If fixtures are needed for tests, create sanitized/minimal samples only.
 - Never commit AniList credentials, access tokens, or OAuth secrets.
 
+## Implementation status
+
+The read-only migration implementation is now staged in draft PR #1 on branch
+`feat/anidb-migration-dry-run`.
+
+Implemented:
+
+- `src/importers/anidb.ts`: parses/normalizes both exports, reconstructs watched history, performs exact ID mapping, conservative fallback scoring, and comparison logic.
+- `src/anidb-migration.ts`: local read-only CLI that accepts the two AniDB exports directly as `.tgz` archives (or extracted files), downloads the pinned ID mapping dataset, checks the current AniList list, and emits a JSON report.
+- `src/__tests__/anidbImporter.test.ts`: sanitized synthetic tests; no personal AniDB data is committed.
+- `npm run anidb:dry-run -- ...`: build + execute the migration preview.
+- The CLI contains no AniList mutation call and reports `writesApplied: 0`.
+
+Example after syncing the branch locally:
+
+```powershell
+npm run anidb:dry-run -- \
+  --json-large C:\path\to\json-large.tgz \
+  --udp C:\path\to\txt-udp-mylist.tgz \
+  --user Luciedmeo \
+  --output C:\path\to\anidb-anilist-dry-run.json
+```
+
+The dry-run can read the public AniList list without OAuth. Authenticating first is still preferred because it lets the comparison include any private entries and verifies that the write-capable account is actually `Luciedmeo`.
+
+Still requiring user-side/local interaction:
+
+1. Create the AniList developer app with redirect `http://localhost:8082/callback` if it does not already exist.
+2. Keep Client ID/Secret local and authenticate `Luciedmeo` with `login_anilist`.
+3. Run the dry-run against the two private AniDB archives and review the generated report.
+4. Only after review, define/approve a separate write phase. No write phase has been implemented.
+
 ## Resume point
 
 When continuing this project:
