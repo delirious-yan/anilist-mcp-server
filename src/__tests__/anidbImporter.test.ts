@@ -42,10 +42,10 @@ test("parseHistoryBundle accepts the repo-only normalized private input", () => 
         totalEpisodes: 2,
         ownedNormalEpisodes: 2,
         watchedNormalEpisodes: 2,
-        firstViewedAt: 1000,
-        lastViewedAt: 2000,
-        firstViewedDate: { year: 2006, month: 1, day: 1 },
-        lastViewedDate: { year: 2006, month: 1, day: 2 },
+        firstViewedAt: null,
+        lastViewedAt: null,
+        firstViewedDate: null,
+        lastViewedDate: null,
         fullyWatched: true,
         allOwnedNormalWatched: true,
         watchState: "completed",
@@ -55,6 +55,8 @@ test("parseHistoryBundle accepts the repo-only normalized private input", () => 
   assert.equal(history.length, 1);
   assert.equal(history[0]!.anidbId, 100);
   assert.equal(history[0]!.watchState, "completed");
+  assert.equal(history[0]!.firstViewedAt, undefined);
+  assert.equal(history[0]!.firstViewedDate, undefined);
 });
 
 test("parseUdpMyList keeps the fields needed for watched reconstruction", () => {
