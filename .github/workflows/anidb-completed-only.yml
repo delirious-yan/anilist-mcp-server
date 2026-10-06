@@ -1,5 +1,7 @@
 name: AniDB Completed-only Migration
 
+# Refresh after suppressed apply attempt returned HTTP 404.
+
 on:
   workflow_dispatch:
     inputs:
