@@ -228,7 +228,7 @@ Validation status:
 
 - Manual/static review has been performed and strict checked-index issues found during review were fixed.
 - The implementation remains in a **draft PR** until a real `npm run build && npm test && npm run lint && npm run format:check` completes.
-- GitHub Actions has not started any run on this fork/PR yet, so CI must **not** be treated as passed. If Actions is disabled on the new fork, enable it in GitHub before merging.
+- GitHub Actions has now been enabled on the fork. A fresh branch update is being used to trigger CI; do not treat validation as passed until the workflow run completes successfully.
 
 Still requiring user-side/local interaction:
 
