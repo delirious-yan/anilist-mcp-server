@@ -9,6 +9,7 @@ import { searchMedia } from "./clients/anilist/search.js";
 import { getAuthorizedUser } from "./clients/anilist/user.js";
 import { createLogger } from "./lib/logger.js";
 import {
+  applyCuratedMappingOverrides,
   buildAniDbHistory,
   chooseFallbackMatch,
   compareMigration,
@@ -285,6 +286,7 @@ async function main(): Promise<void> {
   }
 
   if (!args.skipFallback) mappings = await resolveFallbackMappings(client, history, mappings);
+  mappings = applyCuratedMappingOverrides(mappings);
 
   const currentList = await fetchWholeAnimeList(client, args.user);
   const comparisons = compareMigration(history, mappings, currentList);
