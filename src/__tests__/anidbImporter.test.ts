@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  applyCuratedMappingOverrides,
   buildAniDbHistory,
   chooseFallbackMatch,
   compareMigration,
@@ -181,6 +182,44 @@ test("exactMappings only resolves a unique AniDB to AniList mapping", () => {
   ]);
   assert.deepEqual(resolved[0]!, { anidbId: 1, anilistId: 10, source: "exact" });
   assert.deepEqual(resolved[1]!, { anidbId: 2, source: "unresolved" });
+});
+
+test("curated mapping overrides resolve the Gintama split and ignore unwatched aggregate", () => {
+  const resolved = applyCuratedMappingOverrides([
+    { anidbId: 13263, source: "unresolved" },
+    { anidbId: 4932, source: "unresolved" },
+  ]);
+
+  assert.deepEqual(resolved[0]!.splitParts, [
+    { anilistId: 97889, episodes: 12 },
+    { anilistId: 99714, episodes: 13 },
+  ]);
+  assert.equal(resolved[0]!.source, "split");
+  assert.equal(resolved[1]!.source, "ignored");
+});
+
+test("compareMigration proposes both AniList entries for the completed Gintama split", () => {
+  const history = [
+    {
+      anidbId: 13263,
+      title: "Gintama. (2017)",
+      type: "TV Series",
+      totalEpisodes: 25,
+      ownedNormalEpisodes: 25,
+      watchedNormalEpisodes: 25,
+      fullyWatched: true,
+      allOwnedNormalWatched: true,
+      watchState: "completed" as const,
+    },
+  ];
+  const mappings = applyCuratedMappingOverrides([{ anidbId: 13263, source: "unresolved" }]);
+  const comparisons = compareMigration(history, mappings, []);
+
+  assert.equal(comparisons[0]!.category, "split_completed_candidate");
+  assert.deepEqual(comparisons[0]!.proposedSplitChanges, [
+    { anilistId: 97889, status: "COMPLETED", progress: 12 },
+    { anilistId: 99714, status: "COMPLETED", progress: 13 },
+  ]);
 });
 
 test("fallback matching requires a strong and clearly better candidate", () => {
