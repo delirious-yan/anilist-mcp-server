@@ -1,6 +1,6 @@
 # AniDB → AniList dry-run review
 
-Status: **reviewed, zero writes applied**
+Status: **reviewed and completed-only policy approved; zero writes applied**
 
 GitHub Actions run: `37466671602`
 
@@ -63,10 +63,24 @@ The first write pass should be deliberately narrow:
 7. Do **not** write historical start/completion dates in the first pass. Some exported view timestamps look batch-like, so dates should remain preserved as evidence in the report rather than copied into AniList automatically.
 8. No bulk write may run until the user explicitly approves this policy after seeing the dry-run review.
 
-Under this policy, the first write pass would propose:
+The initial source-record estimate was 131 actions. The dedicated write planner then
+deduplicated completed historical evidence by AniList media ID and produced a
+fingerprinted set of **132 unique Completed targets**. Against the reviewed
+5-entry AniList snapshot, **130 unique missing AniList entries** remain to be
+created.
 
-- **129** ordinary missing Completed entries
-- **2** Completed AniList entries from the Gintama one-to-many split
-- **131 total new/update actions**, subject to a fresh pre-write comparison
+Verified plan run: `37471359927`
 
-The write phase must re-fetch the AniList list immediately before mutations and skip any entry whose current AniList state has changed since this dry-run.
+- Completed target fingerprint: `66e27007ee4e4f7b663abe51e69ec097033a1af8fa52890e5fb951c168e6a953`
+- Reviewed AniList snapshot fingerprint: `3e837325c9c11a0a61ffc2c89a947e1826d2a3b24383296eacc0fdda2fb86614`
+- Write plan fingerprint: `9e67e9a289f194ba5b7c4cc882ab5047917abece4fac1262a0d63e7265b15f31`
+- Approved exact confirmation phrase: `APPLY_COMPLETED_ONLY_130`
+- Writes applied by the plan run: **0**
+
+The user approved the completed-only migration policy on 2026-10-06.
+
+The apply phase remains guarded: it verifies the authenticated account, all
+reviewed counts/fingerprints, and the exact AniList snapshot before writing.
+It probes each target immediately before mutation, preserves any entry that
+already exists, verifies every created entry, and rolls back a newly-created
+entry if verification fails.
