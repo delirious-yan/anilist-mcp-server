@@ -104,16 +104,16 @@ const FuzzyDateSchema = z.object({
 const AniDbHistorySchema = z.object({
   anidbId: z.number().int().positive(),
   title: z.string().min(1),
-  englishTitle: z.string().min(1).optional(),
+  englishTitle: z.string().min(1).nullish(),
   type: z.string(),
-  year: z.number().int().positive().optional(),
+  year: z.number().int().positive().nullish(),
   totalEpisodes: z.number().int().nonnegative(),
   ownedNormalEpisodes: z.number().int().nonnegative(),
   watchedNormalEpisodes: z.number().int().nonnegative(),
-  firstViewedAt: z.number().int().positive().optional(),
-  lastViewedAt: z.number().int().positive().optional(),
-  firstViewedDate: FuzzyDateSchema.optional(),
-  lastViewedDate: FuzzyDateSchema.optional(),
+  firstViewedAt: z.number().int().positive().nullish(),
+  lastViewedAt: z.number().int().positive().nullish(),
+  firstViewedDate: FuzzyDateSchema.nullish(),
+  lastViewedDate: FuzzyDateSchema.nullish(),
   fullyWatched: z.boolean(),
   allOwnedNormalWatched: z.boolean(),
   watchState: z.enum(["completed", "partial", "unwatched", "unknown"]),
@@ -317,7 +317,15 @@ export function buildAniDbHistory(
 }
 
 export function parseHistoryBundle(value: unknown): AniDbHistory[] {
-  return AniDbHistoryBundleSchema.parse(value).anime;
+  return AniDbHistoryBundleSchema.parse(value).anime.map((item) => ({
+    ...item,
+    englishTitle: item.englishTitle ?? undefined,
+    year: item.year ?? undefined,
+    firstViewedAt: item.firstViewedAt ?? undefined,
+    lastViewedAt: item.lastViewedAt ?? undefined,
+    firstViewedDate: item.firstViewedDate ?? undefined,
+    lastViewedDate: item.lastViewedDate ?? undefined,
+  }));
 }
 
 export function parseIdMappings(value: unknown): IdMapping[] {
