@@ -165,5 +165,5 @@ test("compareMigration preserves AniList when it is ahead of AniDB", () => {
     [{ entryId: 1, mediaId: 101, status: "CURRENT", progress: 15, title: "Partial" }],
   );
   assert.equal(comparisons[0]!.category, "anilist_ahead");
-  assert.equal(comparisons[0].proposedChange, undefined);
+  assert.equal(comparisons[0]!.proposedChange, undefined);
 });
