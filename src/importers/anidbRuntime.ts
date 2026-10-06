@@ -123,6 +123,25 @@ export function completedTargetFingerprint(
     .digest("hex");
 }
 
+export function missingCompletedTargets(
+  targets: CompletedHistoricalTarget[],
+  currentList: AniListListEntry[],
+): CompletedHistoricalTarget[] {
+  const currentMediaIds = new Set(currentList.map((entry) => entry.mediaId));
+  return targets.filter((target) => !currentMediaIds.has(target.anilistId));
+}
+
+export function currentListSnapshotFingerprint(currentList: AniListListEntry[]): string {
+  const canonical = [...currentList]
+    .sort((a, b) => a.mediaId - b.mediaId)
+    .map(
+      (entry) =>
+        `${entry.mediaId}:${entry.status ?? ""}:${entry.progress}:${entry.score ?? ""}`,
+    )
+    .join("\n");
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
 export function completedTargetsAndFingerprint(
   history: AniDbHistory[],
   mappings: ResolvedMapping[],
