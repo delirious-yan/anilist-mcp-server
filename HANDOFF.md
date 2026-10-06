@@ -251,3 +251,16 @@ When continuing:
 6. Before apply, store a repo-safe `ANILIST_ACCESS_TOKEN` and choose whether the 130 imported completions should suppress or preserve AniList feed activity.
 7. Run only the guarded workflow `.github/workflows/anidb-completed-only.yml` in `apply` mode with confirmation `APPLY_COMPLETED_ONLY_130`.
 8. Keep the 42 partial-history entries out of this first write pass unless the user separately decides how they should be represented.
+
+## Refreshed completed-only apply baseline
+
+- User-selected activity behavior: **suppress** COMPLETED feed activity during apply, then restore and verify preferences.
+- A guarded apply refused to proceed because the AniList snapshot changed.
+- Read-only refresh run `37484756413` reviewed the new state.
+- Current AniList entries: **27**
+- Existing approved target entries: **24**, with **0 mismatches**
+- Non-target entries: **3**
+- Remaining missing approved Completed entries: **108**
+- Refreshed snapshot fingerprint: `0d31a07c448e671a569ea106b4b7e7658c485ff0f6d69d65aa239f77f3208f06`
+- Refreshed remaining-plan fingerprint: `2f7125acdb1053773180b21fa1c1962402890d84f181584859eb0f27130ea617`
+- Apply confirmation is now `APPLY_COMPLETED_ONLY_108`.
