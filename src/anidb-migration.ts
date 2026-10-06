@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 import { gunzipSync } from "node:zlib";
