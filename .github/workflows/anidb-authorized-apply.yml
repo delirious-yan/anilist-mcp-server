@@ -60,7 +60,7 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          node dist/anidb-migration-write.js             --history-bundle "$RUNNER_TEMP/anidb-history.json"             --user "$TARGET_USER"             --output "$RUNNER_TEMP/anidb-write-report.json"             --apply             --confirm "APPLY_COMPLETED_ONLY_130"             --activity-mode suppress
+          node dist/anidb-migration-write.js             --history-bundle "$RUNNER_TEMP/anidb-history.json"             --user "$TARGET_USER"             --output "$RUNNER_TEMP/anidb-write-report.json"             --apply             --confirm "APPLY_COMPLETED_ONLY_108"             --activity-mode suppress
 
       - name: Encrypt migration report
         if: always()
