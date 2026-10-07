@@ -5,7 +5,9 @@ import { AniListClient } from "./clients/anilist.js";
 import { createLogger } from "./lib/logger.js";
 import { parseHistoryBundle } from "./importers/anidb.js";
 import {
+  completedTargetFingerprint,
   completedTargetsAndFingerprint,
+  currentListSnapshotFingerprint,
   fetchWholeAnimeList,
   resolveMigrationMappings,
 } from "./importers/anidbRuntime.js";
@@ -125,6 +127,10 @@ async function main(): Promise<void> {
     );
     const currentList = await fetchWholeAnimeList(client, "Luciedmeo");
     const currentPlan = buildCompletedOnlyWritePlan(targets, currentList);
+    const compatibilityExcludedMediaIds = new Set([2966, 5081]);
+    const compatibleRemainingActions = currentPlan.actions.filter(
+      (action) => !compatibilityExcludedMediaIds.has(action.anilistId),
+    );
 
     const targetById = new Map(targets.map((target) => [target.anilistId, target]));
     const mismatches = currentPlan.existingTargetEntries
@@ -199,9 +205,15 @@ async function main(): Promise<void> {
           targetCount: targets.length,
           targetFingerprint,
           currentListEntriesWithAdultVisibility: currentList.length,
+          currentListSnapshotFingerprint: currentListSnapshotFingerprint(currentList),
           currentExistingTargetEntries: currentPlan.existingTargetEntries.length,
           currentTargetMismatches: mismatches,
           remainingActions: currentPlan.actions.length,
+          remainingActionFingerprint: completedTargetFingerprint(currentPlan.actions),
+          compatibleRemainingActions: compatibleRemainingActions.length,
+          compatibleRemainingActionFingerprint:
+            completedTargetFingerprint(compatibleRemainingActions),
+          compatibilityExcludedMediaIds: [...compatibilityExcludedMediaIds],
           remainingEpisodeCountMismatches,
           unavailableRemainingTargets,
           nextAction: nextAction
