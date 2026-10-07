@@ -21,18 +21,28 @@ import {
   type ProbedListEntry,
 } from "./importers/anidbWrite.js";
 
-// Refreshed after read-only plan run 37484756413 verified the current AniList snapshot.
+// Refreshed after interrupted apply run 37555042109 and compatibility
+// diagnostic run 37556625813. Fifty historical targets remain absent, but two
+// cannot safely be represented as COMPLETED on AniList because AniList counts
+// more episodes than the historical watched evidence establishes.
+const COMPATIBILITY_EXCLUSIONS = new Map<number, number>([
+  [2966, 12], // Spice and Wolf: AniList has 13 episodes; historical evidence proves 12 watched.
+  [5081, 12], // Bakemonogatari: AniList has 15 episodes; historical evidence proves 12 watched.
+]);
+
 const APPROVED = {
   user: "Luciedmeo",
   animeCount: 208,
   completedTargetCount: 132,
   completedTargetFingerprint: "66e27007ee4e4f7b663abe51e69ec097033a1af8fa52890e5fb951c168e6a953",
-  initialAniListEntries: 27,
+  initialAniListEntries: 85,
   initialAniListSnapshotFingerprint:
-    "0d31a07c448e671a569ea106b4b7e7658c485ff0f6d69d65aa239f77f3208f06",
-  actionCount: 108,
-  actionFingerprint: "2f7125acdb1053773180b21fa1c1962402890d84f181584859eb0f27130ea617",
-  confirmation: "APPLY_COMPLETED_ONLY_108",
+    "c8fbc2e4d18e792dca1a128550dfd7f0aae241b7aa124ebed3c2f78157962503",
+  rawActionCount: 50,
+  rawActionFingerprint: "08c77d12ccf5ed147ffc00755beb2994d87b7f0ec172b6a4e2e5b6009472b5eb",
+  actionCount: 48,
+  actionFingerprint: "4829bc4612a078ceca1b3ec991f27dd21cb36f32952b898ca9d8d7ffa8c7600c",
+  confirmation: "APPLY_COMPLETED_ONLY_48",
 } as const;
 
 const ViewerSchema = z.object({ name: z.string().min(1) }).loose();
