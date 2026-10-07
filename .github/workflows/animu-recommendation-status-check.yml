@@ -1,4 +1,4 @@
-name: Complete Chainsaw Fire Force Bleach
+name: Inspect Demon Slayer Franchise
 
 on:
   push:
@@ -9,221 +9,45 @@ permissions:
   contents: read
 
 jobs:
-  update:
+  inspect:
     runs-on: ubuntu-latest
     env:
       ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
-      TARGET_USER: Luciedmeo
     steps:
-      - name: Verify and update requested completed anime
+      - name: List Demon Slayer anime entries
         shell: bash
         run: |
-          if [ -z "$ANILIST_ACCESS_TOKEN" ]; then
-            echo "::error::ANILIST_ACCESS_TOKEN is not configured."
-            exit 1
-          fi
-
           node <<'NODE'
-          const endpoint = "https://graphql.anilist.co";
-          const token = process.env.ANILIST_ACCESS_TOKEN;
-          const targetUser = process.env.TARGET_USER;
-          const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-          const requested = [
-            { search: "Chainsaw Man", exact: ["Chainsaw Man"], expectedEpisodes: 12 },
-            { search: "Fire Force", exact: ["Fire Force", "Enen no Shouboutai"], expectedEpisodes: 24 },
-            { search: "Fire Force Season 2", exact: ["Fire Force Season 2", "Enen no Shouboutai: Ni no Shou"], expectedEpisodes: 24 },
-            { search: "Bleach", exact: ["Bleach", "BLEACH"], expectedEpisodes: 366 }
-          ];
-
-          async function gql(query, variables={}) {
-            for (let attempt=0; attempt<6; attempt++) {
-              const res = await fetch(endpoint, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Accept": "application/json",
-                  "Authorization": "Bearer " + token
-                },
-                body: JSON.stringify({ query, variables })
-              });
-              let payload = null;
-              try { payload = await res.json(); } catch {}
-              const rateLimited = res.status === 429 ||
-                payload?.errors?.some(e => e?.status === 429 || /too many requests/i.test(e?.message ?? ""));
-              if (rateLimited && attempt < 5) {
-                const retryAfter = Number(res.headers.get("retry-after") || 0);
-                await sleep(Math.max(retryAfter*1000, 4000*(attempt+1)));
-                continue;
-              }
-              if (!res.ok || payload?.errors) {
-                throw new Error("AniList GraphQL error: " + JSON.stringify(payload?.errors ?? payload ?? {status:res.status}));
-              }
-              await sleep(1800);
-              return payload.data;
+          const endpoint="https://graphql.anilist.co";
+          const token=process.env.ANILIST_ACCESS_TOKEN;
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          async function gql(query,variables={}){
+            for(let i=0;i<5;i++){
+              const res=await fetch(endpoint,{method:"POST",headers:{
+                "Content-Type":"application/json","Accept":"application/json",
+                "Authorization":"Bearer "+token
+              },body:JSON.stringify({query,variables})});
+              let p=null; try{p=await res.json()}catch{}
+              if((res.status===429||p?.errors?.some(e=>e?.status===429))&&i<4){await sleep(3000*(i+1));continue;}
+              if(!res.ok||p?.errors) throw new Error(JSON.stringify(p?.errors??p??{status:res.status}));
+              return p.data;
             }
-            throw new Error("AniList retries exhausted");
           }
-
-          function hasDate(v) {
-            return Boolean(v && (v.year || v.month || v.day));
-          }
-
-          async function viewer() {
-            return (await gql(`query{
-              Viewer{
-                name
-                options{disabledListActivity{type disabled}}
-              }
-            }`)).Viewer;
-          }
-
-          async function resolve(item) {
-            const data = await gql(`query($search:String){
-              Media(search:$search,type:ANIME){
-                id
-                format
-                status
-                episodes
+          const d=await gql(`query{
+            Page(page:1,perPage:50){
+              media(search:"Kimetsu no Yaiba",type:ANIME,sort:START_DATE){
+                id format status episodes
                 title{english romaji}
-                mediaListEntry{
-                  id status progress
-                  startedAt{year month day}
-                  completedAt{year month day}
-                }
+                startDate{year month day}
+                mediaListEntry{id status progress}
               }
-            }`, {search:item.search});
-            const m = data.Media;
-            if (!m) throw new Error("No AniList result for " + item.search);
-            const titles = [m.title?.english, m.title?.romaji].filter(Boolean);
-            if (!titles.some(t => item.exact.includes(t))) {
-              throw new Error("Unexpected match for " + item.search + ": " + JSON.stringify(m.title));
             }
-            if (m.status !== "FINISHED") {
-              throw new Error(item.search + ": media is not FINISHED");
-            }
-            if (m.episodes !== item.expectedEpisodes) {
-              throw new Error(item.search + ": expected " + item.expectedEpisodes + " episodes, got " + m.episodes);
-            }
-            return m;
-          }
-
-          async function setOptions(options) {
-            await gql(`mutation($options:[ListActivityOptionInput]){
-              UpdateUser(disabledListActivity:$options){id}
-            }`, {options});
-          }
-
-          async function saveComplete(mediaId, progress) {
-            return (await gql(`mutation($mediaId:Int,$progress:Int){
-              SaveMediaListEntry(mediaId:$mediaId,status:COMPLETED,progress:$progress){
-                id status progress
-                startedAt{year month day}
-                completedAt{year month day}
-              }
-            }`, {mediaId,progress})).SaveMediaListEntry;
-          }
-
-          async function clearAutoDates(entry, before) {
-            const vars = {id:entry.id};
-            let needed = false;
-            if (!hasDate(before?.startedAt) && hasDate(entry.startedAt)) {
-              vars.startedAt = {};
-              needed = true;
-            }
-            if (!hasDate(before?.completedAt) && hasDate(entry.completedAt)) {
-              vars.completedAt = {};
-              needed = true;
-            }
-            if (needed) {
-              await gql(`mutation($id:Int,$startedAt:FuzzyDateInput,$completedAt:FuzzyDateInput){
-                SaveMediaListEntry(id:$id,startedAt:$startedAt,completedAt:$completedAt){id}
-              }`, vars);
-            }
-          }
-
-          const v = await viewer();
-          if (v.name !== targetUser) {
-            throw new Error("Authenticated AniList account is " + v.name + "; expected " + targetUser);
-          }
-
-          const resolved = [];
-          for (const item of requested) {
-            resolved.push({item, media:await resolve(item)});
-          }
-
-          console.log("BEFORE");
-          for (const {item,media} of resolved) {
+          }`);
+          for(const m of d.Page.media){
             console.log(JSON.stringify({
-              title:item.search,
-              mediaId:media.id,
-              episodes:media.episodes,
-              status:media.mediaListEntry?.status ?? null,
-              progress:media.mediaListEntry?.progress ?? null
+              id:m.id,title:m.title.english||m.title.romaji,romaji:m.title.romaji,
+              format:m.format,status:m.status,episodes:m.episodes,startDate:m.startDate,
+              listStatus:m.mediaListEntry?.status??null,progress:m.mediaListEntry?.progress??null
             }));
           }
-
-          const needs = resolved.filter(({media}) =>
-            media.mediaListEntry?.status !== "COMPLETED" ||
-            media.mediaListEntry?.progress !== media.episodes
-          );
-
-          const original = (v.options?.disabledListActivity ?? []).map(x => ({
-            type:x.type, disabled:Boolean(x.disabled)
-          }));
-          let changed = false;
-
-          try {
-            if (needs.length) {
-              const suppressed = original.map(x => ({
-                ...x,
-                disabled: x.type === "COMPLETED" ? true : x.disabled
-              }));
-              changed = suppressed.some((x,i) => x.disabled !== original[i]?.disabled);
-              if (changed) {
-                await setOptions(suppressed);
-                console.log("Temporarily suppressed COMPLETED activity.");
-              }
-
-              for (const {item,media} of needs) {
-                const before = media.mediaListEntry;
-                const saved = await saveComplete(media.id, media.episodes);
-                await clearAutoDates(saved, before);
-
-                const verify = await resolve(item);
-                if (
-                  verify.mediaListEntry?.status !== "COMPLETED" ||
-                  verify.mediaListEntry?.progress !== verify.episodes
-                ) {
-                  throw new Error(item.search + ": verification failed");
-                }
-                console.log("UPDATED: " + item.search + " -> COMPLETED " + verify.episodes + "/" + verify.episodes);
-              }
-            }
-          } finally {
-            if (changed) {
-              await setOptions(original);
-              console.log("Restored AniList list-activity preferences.");
-            }
-          }
-
-          const final = [];
-          for (const item of requested) {
-            const m = await resolve(item);
-            final.push({
-              title:item.search,
-              mediaId:m.id,
-              episodes:m.episodes,
-              status:m.mediaListEntry?.status ?? null,
-              progress:m.mediaListEntry?.progress ?? null
-            });
-          }
-
-          const bad = final.filter(x => x.status !== "COMPLETED" || x.progress !== x.episodes);
-          if (bad.length) {
-            throw new Error("Final verification failed: " + JSON.stringify(bad));
-          }
-
-          console.log("FINAL_VERIFICATION_OK");
-          console.log(JSON.stringify({updatedCount:needs.length,final},null,2));
           NODE
