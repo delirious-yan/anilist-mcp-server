@@ -1,0 +1,49 @@
+name: AniDB Resume Diagnostic
+
+on:
+  push:
+    branches:
+      - ops/anidb-completed-only-apply-20261007
+    paths:
+      - .github/workflows/anidb-resume-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    env:
+      ANIDB_HISTORY_BUNDLE_B64: ${{ secrets.ANIDB_HISTORY_BUNDLE_B64 }}
+      ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
+      LOG_LEVEL: warn
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Decode private history
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$ANIDB_HISTORY_BUNDLE_B64" |
+            base64 --decode |
+            gzip -dc > "$RUNNER_TEMP/anidb-history.json"
+
+      - name: Diagnose current safe resume point
+        shell: bash
+        run: |
+          node dist/anidb-resume-diagnostic.js "$RUNNER_TEMP/anidb-history.json"
+
+      - name: Remove plaintext private data
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/anidb-history.json"
