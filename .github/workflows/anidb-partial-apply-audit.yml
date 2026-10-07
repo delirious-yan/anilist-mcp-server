@@ -1,0 +1,68 @@
+name: AniDB Partial Apply Audit
+
+on:
+  push:
+    branches:
+      - ops/anidb-completed-only-apply-20261007
+    paths:
+      - .github/workflows/anidb-partial-apply-audit.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ANIDB_HISTORY_BUNDLE_B64: ${{ secrets.ANIDB_HISTORY_BUNDLE_B64 }}
+
+    steps:
+      - name: Download encrypted report from interrupted apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/report"
+          gh run download 37555042109 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name anidb-authorized-apply-37555042109 \
+            --dir "$RUNNER_TEMP/report"
+
+      - name: Decrypt and print safe audit summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          encrypted="$(find "$RUNNER_TEMP/report" -type f -name 'anidb-write-report.enc.txt' -print -quit)"
+          test -n "$encrypted" || { echo "::error::Encrypted report not found."; exit 1; }
+
+          REPORT_KEY="$(printf '%s' "$ANIDB_HISTORY_BUNDLE_B64" | sha256sum | cut -d' ' -f1)"
+          REPORT_KEY="$REPORT_KEY" openssl enc -d \
+            -aes-256-cbc \
+            -pbkdf2 \
+            -a \
+            -A \
+            -in "$encrypted" \
+            -out "$RUNNER_TEMP/report.json" \
+            -pass env:REPORT_KEY
+
+          jq '{
+            mode,
+            targetUser,
+            observed,
+            activityMode,
+            activityPreferencesRestored,
+            completed,
+            error,
+            writeCount: (.writes | length),
+            appliedCount: ([.writes[] | select(.result == "applied")] | length),
+            skippedExistingCount: ([.writes[] | select(.result == "skipped_existing")] | length),
+            rolledBackCount: ([.writes[] | select(.result == "rolled_back")] | length),
+            lastFiveWrites: (.writes[-5:] // [])
+          }' "$RUNNER_TEMP/report.json"
+
+      - name: Remove decrypted report
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/report" "$RUNNER_TEMP/report.json"
