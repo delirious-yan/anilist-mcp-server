@@ -295,7 +295,7 @@ async function createVerifiedCompletedEntry(
     if (after.status !== "COMPLETED" || after.progress !== action.progress) {
       await rollbackCreatedEntry(client, after.id);
       throw new Error(
-        "Created entry did not match the approved status/progress and was rolled back",
+        `Created AniList media ${action.anilistId} did not match approved status/progress (expected COMPLETED/${action.progress}, got ${after.status ?? "null"}/${after.progress ?? "null"}) and was rolled back`,
       );
     }
 
