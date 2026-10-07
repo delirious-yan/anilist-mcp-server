@@ -22,6 +22,26 @@ const ViewerResponseSchema = z
   })
   .loose();
 
+const MediaProbeSchema = z
+  .object({
+    Media: z
+      .object({
+        id: z.number().int().positive(),
+        episodes: z.number().int().positive().nullish(),
+        format: z.string().nullish(),
+        isAdult: z.boolean().nullish(),
+        mediaListEntry: z
+          .object({
+            id: z.number().int().positive(),
+            status: z.string().nullish(),
+            progress: z.number().int().nonnegative().nullish(),
+          })
+          .nullish(),
+      })
+      .nullish(),
+  })
+  .loose();
+
 async function readViewer(client: AniListClient): Promise<{
   name: string;
   displayAdultContent: boolean;
@@ -57,16 +77,18 @@ async function setAdultVisibility(client: AniListClient, enabled: boolean): Prom
   }
 }
 
-async function probeMedia(client: AniListClient, mediaId: number): Promise<unknown> {
+async function probeMedia(client: AniListClient, mediaId: number) {
   const ctx = client.ctx();
-  return ctx.gql.request<unknown>(
-    `query($id:Int){Media(id:$id,type:ANIME){
-      id episodes format isAdult
-      mediaListEntry{id status progress}
-    }}`,
-    { id: mediaId },
-    ctx.requireAuth(),
-    { skipCache: true },
+  return MediaProbeSchema.parse(
+    await ctx.gql.request<unknown>(
+      `query($id:Int){Media(id:$id,type:ANIME){
+        id episodes format isAdult
+        mediaListEntry{id status progress}
+      }}`,
+      { id: mediaId },
+      ctx.requireAuth(),
+      { skipCache: true },
+    ),
   );
 }
 
@@ -123,6 +145,51 @@ async function main(): Promise<void> {
     const nextAction = currentPlan.actions[0];
     const nextMedia = nextAction ? await probeMedia(client, nextAction.anilistId) : undefined;
 
+    const remainingEpisodeCountMismatches: Array<{
+      anidbId: number;
+      mediaId: number;
+      expectedProgress: number;
+      aniListEpisodes: number;
+      format?: string | null;
+      isAdult?: boolean | null;
+    }> = [];
+    const unavailableRemainingTargets: Array<{
+      anidbId: number;
+      mediaId: number;
+      error: string;
+    }> = [];
+
+    for (const action of currentPlan.actions) {
+      try {
+        const probe = await probeMedia(client, action.anilistId);
+        const media = probe.Media;
+        if (!media) {
+          unavailableRemainingTargets.push({
+            anidbId: action.anidbId,
+            mediaId: action.anilistId,
+            error: "AniList returned null media",
+          });
+          continue;
+        }
+        if (media.episodes != null && media.episodes !== action.progress) {
+          remainingEpisodeCountMismatches.push({
+            anidbId: action.anidbId,
+            mediaId: action.anilistId,
+            expectedProgress: action.progress,
+            aniListEpisodes: media.episodes,
+            format: media.format,
+            isAdult: media.isAdult,
+          });
+        }
+      } catch (error) {
+        unavailableRemainingTargets.push({
+          anidbId: action.anidbId,
+          mediaId: action.anilistId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     process.stdout.write(
       `${JSON.stringify(
         {
@@ -135,6 +202,8 @@ async function main(): Promise<void> {
           currentExistingTargetEntries: currentPlan.existingTargetEntries.length,
           currentTargetMismatches: mismatches,
           remainingActions: currentPlan.actions.length,
+          remainingEpisodeCountMismatches,
+          unavailableRemainingTargets,
           nextAction: nextAction
             ? {
                 anidbId: nextAction.anidbId,
