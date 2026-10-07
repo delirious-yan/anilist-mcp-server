@@ -1,3 +1,21 @@
+<!-- mind-self-bootstrap -->
+## mind-self bootstrap — owner standing instruction
+
+For Ian's authorized AI sessions, before substantial work or answering a repo-state question, load the private cross-agent context repository `delirious-yan/mind-self` when access is available.
+
+Read, in order:
+
+1. `AGENTS.md` in mind-self;
+2. relevant material from `profile/INDEX.md`;
+3. `projects/INDEX.md` and this project's `PROJECT.md` / `HANDOFF.md` entry when present;
+4. `skills/INDEX.md` and any relevant shared `SKILL.md`.
+
+Then return here and follow this repository's own instructions and current code/handoff. This repository remains authoritative for its implementation state.
+
+If mind-self is unavailable to the active agent, do not block the task; continue with repo-local instructions and state.
+
+Ian has granted standing permission for authorized agents to write durable new personal/project context back to mind-self without asking for routine per-write approval. mind-self changes must follow its provenance and audit rules.
+
 # AGENTS.md
 
 Single source of truth for working on this repository — for **any** model or
