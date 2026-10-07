@@ -1,6 +1,6 @@
 name: AniDB Resume Diagnostic
 
-# Re-run to scan remaining targets for episode-count mismatches.
+# Re-run to scan remaining targets and fingerprint the compatible resume set.
 
 on:
   push:
