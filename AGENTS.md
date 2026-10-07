@@ -1,7 +1,7 @@
 <!-- mind-self-bootstrap -->
 ## mind-self bootstrap — owner standing instruction
 
-For Ian's authorized AI sessions, before substantial work or answering a repo-state question, load the private cross-agent context repository `delirious-yan/mind-self` when access is available.
+For any AI model Ian chooses to use, before substantial work or answering a repo-state question, load the private cross-agent context repository `delirious-yan/mind-self`.
 
 Read, in order:
 
@@ -12,9 +12,20 @@ Read, in order:
 
 Then return here and follow this repository's own instructions and current code/handoff. This repository remains authoritative for its implementation state.
 
-If mind-self is unavailable to the active agent, do not block the task; continue with repo-local instructions and state.
+If GitHub or mind-self access is unavailable or insufficient, ask Ian to grant/approve full GitHub access. Do not silently downgrade to a model-specific restricted workflow.
 
-Ian has granted standing permission for authorized agents to write durable new personal/project context back to mind-self without asking for routine per-write approval. mind-self changes must follow its provenance and audit rules.
+Ian grants the AI models he chooses standing permission to use full task-relevant GitHub read/write access once connected and to write durable personal/project context back to mind-self without routine per-write approval. mind-self changes must follow its provenance and audit rules.
+
+### mind-self synchronization
+
+Treat this repository and mind-self as virtually connected by agent protocol. In the same task:
+
+- when this project's handoff is created or materially updated, reconcile the corresponding mind-self project handoff;
+- when a project skill is created, installed, removed, or materially changed, register/update it in the corresponding mind-self project context and promote it to the shared mind-self skill library when it is reusable across projects;
+- when durable project purpose, architecture, constraints, relationships, source-of-truth rules, or long-lived decisions change, reconcile the mind-self project overview;
+- append the required mind-self audit entry.
+
+Do not make Ian manually request this synchronization. The project repo remains authoritative for detailed implementation state; mind-self remains authoritative for portable cross-agent context and continuity.
 
 # AGENTS.md
 
