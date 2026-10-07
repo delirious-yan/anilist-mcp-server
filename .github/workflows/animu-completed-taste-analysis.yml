@@ -1,0 +1,172 @@
+name: Animu Completed Taste Analysis
+
+on:
+  push:
+    branches:
+      - animu/completed-taste-analysis-20261007
+    paths:
+      - .github/workflows/animu-completed-taste-analysis.yml
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    env:
+      ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
+      TARGET_USER: Luciedmeo
+    steps:
+      - name: Query completed AniList library and summarize
+        shell: bash
+        run: |
+          node <<'NODE'
+          const endpoint = "https://graphql.anilist.co";
+          const token = process.env.ANILIST_ACCESS_TOKEN;
+          const userName = process.env.TARGET_USER;
+
+          async function gql(query, variables = {}) {
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({ query, variables }),
+            });
+            const payload = await response.json();
+            if (!response.ok || payload.errors) {
+              throw new Error(JSON.stringify(payload.errors ?? payload));
+            }
+            return payload.data;
+          }
+
+          const data = await gql(`
+            query($userName:String) {
+              MediaListCollection(userName:$userName,type:ANIME,status:COMPLETED,forceSingleCompletedList:true) {
+                lists {
+                  name
+                  entries {
+                    id
+                    score(format:POINT_10_DECIMAL)
+                    progress
+                    repeat
+                    media {
+                      id
+                      idMal
+                      title { romaji english native }
+                      format
+                      status
+                      episodes
+                      duration
+                      season
+                      seasonYear
+                      source(version:3)
+                      countryOfOrigin
+                      genres
+                      averageScore
+                      popularity
+                      isAdult
+                      tags { name rank isMediaSpoiler isGeneralSpoiler }
+                      studios(isMain:true) { nodes { name } }
+                    }
+                  }
+                }
+              }
+            }
+          `, { userName });
+
+          const entries = (data.MediaListCollection?.lists ?? [])
+            .flatMap((list) => list.entries ?? [])
+            .filter((entry) => entry?.media);
+
+          const uniq = new Map();
+          for (const entry of entries) uniq.set(entry.media.id, entry);
+          const list = [...uniq.values()];
+
+          function countBy(values) {
+            const m = new Map();
+            for (const v of values) {
+              if (v == null || v === "") continue;
+              m.set(v, (m.get(v) || 0) + 1);
+            }
+            return [...m.entries()].sort((a,b) => b[1]-a[1] || String(a[0]).localeCompare(String(b[0])));
+          }
+          function top(arr, n=30) { return arr.slice(0,n); }
+
+          const genreCounts = countBy(list.flatMap((e) => e.media.genres ?? []));
+          const formatCounts = countBy(list.map((e) => e.media.format));
+          const sourceCounts = countBy(list.map((e) => e.media.source));
+          const originCounts = countBy(list.map((e) => e.media.countryOfOrigin));
+          const studioCounts = countBy(list.flatMap((e) => (e.media.studios?.nodes ?? []).map((s) => s.name)));
+          const decadeCounts = countBy(list.map((e) => e.media.seasonYear ? `${Math.floor(e.media.seasonYear/10)*10}s` : null));
+
+          const tagCounts = new Map();
+          const weightedTags = new Map();
+          for (const e of list) {
+            for (const tag of e.media.tags ?? []) {
+              if (tag.isMediaSpoiler || tag.isGeneralSpoiler || tag.rank < 60) continue;
+              tagCounts.set(tag.name, (tagCounts.get(tag.name) || 0) + 1);
+              weightedTags.set(tag.name, (weightedTags.get(tag.name) || 0) + tag.rank);
+            }
+          }
+          const tagStats = [...tagCounts.entries()]
+            .map(([name,count]) => ({name,count,weight:weightedTags.get(name)}))
+            .sort((a,b) => b.count-a.count || b.weight-a.weight || a.name.localeCompare(b.name));
+
+          const scored = list.filter((e) => Number(e.score) > 0);
+          const episodes = list.map((e) => e.media.episodes).filter(Number.isFinite).sort((a,b)=>a-b);
+          const medianEpisodes = episodes.length ? episodes[Math.floor(episodes.length/2)] : null;
+
+          const perEntry = list
+            .map((e) => ({
+              id: e.media.id,
+              title: e.media.title.english || e.media.title.romaji,
+              romaji: e.media.title.romaji,
+              year: e.media.seasonYear,
+              season: e.media.season,
+              format: e.media.format,
+              episodes: e.media.episodes,
+              duration: e.media.duration,
+              source: e.media.source,
+              country: e.media.countryOfOrigin,
+              genres: e.media.genres ?? [],
+              topTags: (e.media.tags ?? [])
+                .filter((t) => !t.isMediaSpoiler && !t.isGeneralSpoiler)
+                .sort((a,b)=>b.rank-a.rank)
+                .slice(0,8)
+                .map((t)=>({name:t.name,rank:t.rank})),
+              studios: (e.media.studios?.nodes ?? []).map((s)=>s.name),
+              averageScore: e.media.averageScore,
+              popularity: e.media.popularity,
+              userScore: e.score,
+              repeat: e.repeat ?? 0,
+              isAdult: Boolean(e.media.isAdult)
+            }))
+            .sort((a,b) => (a.year ?? 9999)-(b.year ?? 9999) || a.title.localeCompare(b.title));
+
+          const summary = {
+            userName,
+            completedUnique: list.length,
+            scoredEntries: scored.length,
+            averageUserScore: scored.length ? +(scored.reduce((s,e)=>s+Number(e.score),0)/scored.length).toFixed(2) : null,
+            repeatCountTotal: list.reduce((s,e)=>s+(e.repeat ?? 0),0),
+            adultCount: list.filter((e)=>e.media.isAdult).length,
+            medianEpisodes,
+            topGenres: top(genreCounts,30),
+            formats: formatCounts,
+            sources: top(sourceCounts,25),
+            origins: originCounts,
+            decades: decadeCounts,
+            topStudios: top(studioCounts,30),
+            topTags: top(tagStats,60)
+          };
+
+          console.log("===ANIMU_SUMMARY_START===");
+          console.log(JSON.stringify(summary));
+          console.log("===ANIMU_SUMMARY_END===");
+          console.log("===ANIMU_ENTRIES_START===");
+          for (const entry of perEntry) console.log(JSON.stringify(entry));
+          console.log("===ANIMU_ENTRIES_END===");
+          NODE
