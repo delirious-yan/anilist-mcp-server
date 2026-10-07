@@ -62,6 +62,17 @@ const ActivityOptionsResponseSchema = z
   })
   .loose();
 
+const MediaEpisodeProbeSchema = z
+  .object({
+    Media: z
+      .object({
+        id: z.number().int().positive(),
+        episodes: z.number().int().positive().nullish(),
+      })
+      .nullish(),
+  })
+  .loose();
+
 type ActivityMode = "preserve" | "suppress";
 
 interface Args {
