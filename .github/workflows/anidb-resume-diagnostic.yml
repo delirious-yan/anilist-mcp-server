@@ -1,5 +1,7 @@
 name: AniDB Resume Diagnostic
 
+# Re-run to scan remaining targets for episode-count mismatches.
+
 on:
   push:
     branches:
