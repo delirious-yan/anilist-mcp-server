@@ -1,0 +1,270 @@
+name: Animu Manual AniList Completion Update
+
+on:
+  push:
+    branches:
+      - animu/anilist-manual-completion-20261007
+    paths:
+      - .github/workflows/animu-manual-anilist-completion.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: animu-manual-anilist-completion
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
+      TARGET_USER: Luciedmeo
+    steps:
+      - name: Validate token and update confirmed completed anime
+        shell: bash
+        run: |
+          if [ -z "$ANILIST_ACCESS_TOKEN" ]; then
+            echo "::error::ANILIST_ACCESS_TOKEN is not configured."
+            exit 1
+          fi
+
+          node <<'NODE'
+          const endpoint = "https://graphql.anilist.co";
+          const token = process.env.ANILIST_ACCESS_TOKEN;
+          const targetUser = process.env.TARGET_USER;
+
+          const targets = [
+            { id: 182, episodes: 26, label: "Vision of Escaflowne" },
+            { id: 112301, episodes: 13, label: "The Misfit of Demon King Academy" },
+            { id: 130588, episodes: 12, label: "The Misfit of Demon King Academy II" },
+            { id: 130590, episodes: 12, label: "The Misfit of Demon King Academy II Part 2" },
+            { id: 21202, episodes: 10, label: "KONOSUBA Season 1" },
+            { id: 21699, episodes: 10, label: "KONOSUBA Season 2" },
+            { id: 136804, episodes: 11, label: "KONOSUBA Season 3" },
+          ];
+
+          async function gql(query, variables = {}) {
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": `Bearer ${token}`,
+              },
+              body: JSON.stringify({ query, variables }),
+            });
+            const payload = await response.json();
+            if (!response.ok || payload.errors) {
+              throw new Error(`AniList GraphQL error: ${JSON.stringify(payload.errors ?? payload)}`);
+            }
+            return payload.data;
+          }
+
+          function hasDate(value) {
+            return Boolean(value && (value.year || value.month || value.day));
+          }
+
+          function sameDate(a, b) {
+            const norm = (v) => ({
+              year: v?.year ?? null,
+              month: v?.month ?? null,
+              day: v?.day ?? null,
+            });
+            return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
+          }
+
+          async function readMedia(id) {
+            const data = await gql(
+              `query($id:Int){
+                Media(id:$id,type:ANIME){
+                  id
+                  status
+                  episodes
+                  title{romaji english}
+                  mediaListEntry{
+                    id
+                    status
+                    progress
+                    startedAt{year month day}
+                    completedAt{year month day}
+                  }
+                }
+              }`,
+              { id },
+            );
+            if (!data.Media) throw new Error(`AniList media ${id} was not found`);
+            return data.Media;
+          }
+
+          async function getViewer() {
+            const data = await gql(`query{
+              Viewer{
+                name
+                options{disabledListActivity{type disabled}}
+              }
+            }`);
+            return data.Viewer;
+          }
+
+          async function setActivityOptions(options) {
+            await gql(
+              `mutation($options:[ListActivityOptionInput]){
+                UpdateUser(disabledListActivity:$options){id}
+              }`,
+              { options },
+            );
+          }
+
+          async function saveCompleted(mediaId, progress) {
+            const data = await gql(
+              `mutation($mediaId:Int,$status:MediaListStatus,$progress:Int){
+                SaveMediaListEntry(mediaId:$mediaId,status:$status,progress:$progress){
+                  id
+                  status
+                  progress
+                  startedAt{year month day}
+                  completedAt{year month day}
+                }
+              }`,
+              { mediaId, status: "COMPLETED", progress },
+            );
+            return data.SaveMediaListEntry;
+          }
+
+          async function clearAutoDates(listEntryId, clearStartedAt, clearCompletedAt) {
+            const variables = { id: listEntryId };
+            if (clearStartedAt) variables.startedAt = {};
+            if (clearCompletedAt) variables.completedAt = {};
+            await gql(
+              `mutation($id:Int,$startedAt:FuzzyDateInput,$completedAt:FuzzyDateInput){
+                SaveMediaListEntry(id:$id,startedAt:$startedAt,completedAt:$completedAt){
+                  id
+                }
+              }`,
+              variables,
+            );
+          }
+
+          const viewer = await getViewer();
+          if (viewer.name !== targetUser) {
+            throw new Error(`Authenticated AniList account is ${viewer.name}; expected ${targetUser}. No writes applied.`);
+          }
+
+          const preflight = [];
+          for (const target of targets) {
+            const media = await readMedia(target.id);
+            if (media.status !== "FINISHED") {
+              throw new Error(`${target.label}: expected FINISHED media, got ${media.status}`);
+            }
+            if (media.episodes !== target.episodes) {
+              throw new Error(`${target.label}: expected ${target.episodes} episodes, AniList reports ${media.episodes}`);
+            }
+            preflight.push({ target, media });
+          }
+
+          console.log("Preflight passed for all 7 AniList entries.");
+
+          const originalActivity = viewer.options?.disabledListActivity ?? [];
+          const suppressedActivity = originalActivity.map((option) => ({
+            type: option.type,
+            disabled: option.type === "COMPLETED" ? true : Boolean(option.disabled),
+          }));
+          const activityChanged = suppressedActivity.some((option, i) =>
+            option.disabled !== Boolean(originalActivity[i]?.disabled)
+          );
+
+          let restored = !activityChanged;
+          const results = [];
+
+          try {
+            if (activityChanged) {
+              await setActivityOptions(suppressedActivity);
+              const verify = await getViewer();
+              const completed = verify.options?.disabledListActivity?.find((x) => x.type === "COMPLETED");
+              if (!completed?.disabled) throw new Error("Could not verify COMPLETED activity suppression");
+              console.log("Temporarily suppressed COMPLETED list activity.");
+            }
+
+            for (const { target, media } of preflight) {
+              const before = media.mediaListEntry;
+              if (before?.status === "COMPLETED" && before.progress === target.episodes) {
+                results.push({ label: target.label, result: "already_completed" });
+                console.log(`SKIP: ${target.label} already COMPLETED ${target.episodes}/${target.episodes}`);
+                continue;
+              }
+
+              let after = await saveCompleted(target.id, target.episodes);
+
+              const clearStarted = !hasDate(before?.startedAt) && hasDate(after.startedAt);
+              const clearCompleted = !hasDate(before?.completedAt) && hasDate(after.completedAt);
+              if (clearStarted || clearCompleted) {
+                await clearAutoDates(after.id, clearStarted, clearCompleted);
+              }
+
+              const verified = await readMedia(target.id);
+              after = verified.mediaListEntry;
+              if (!after || after.status !== "COMPLETED" || after.progress !== target.episodes) {
+                throw new Error(`${target.label}: post-write status/progress verification failed`);
+              }
+
+              if (hasDate(before?.startedAt) && !sameDate(before.startedAt, after.startedAt)) {
+                throw new Error(`${target.label}: existing startedAt date changed unexpectedly`);
+              }
+              if (hasDate(before?.completedAt) && !sameDate(before.completedAt, after.completedAt)) {
+                throw new Error(`${target.label}: existing completedAt date changed unexpectedly`);
+              }
+              if (!hasDate(before?.startedAt) && hasDate(after.startedAt)) {
+                throw new Error(`${target.label}: auto-generated startedAt date could not be cleared`);
+              }
+              if (!hasDate(before?.completedAt) && hasDate(after.completedAt)) {
+                throw new Error(`${target.label}: auto-generated completedAt date could not be cleared`);
+              }
+
+              results.push({
+                label: target.label,
+                result: before ? "updated_existing" : "created_completed",
+              });
+              console.log(`UPDATED: ${target.label} -> COMPLETED ${target.episodes}/${target.episodes}`);
+            }
+          } finally {
+            if (activityChanged) {
+              await setActivityOptions(
+                originalActivity.map((option) => ({
+                  type: option.type,
+                  disabled: Boolean(option.disabled),
+                })),
+              );
+              const verify = await getViewer();
+              const restoredOptions = verify.options?.disabledListActivity ?? [];
+              restored = originalActivity.every((expected) => {
+                const actual = restoredOptions.find((x) => x.type === expected.type);
+                return actual && Boolean(actual.disabled) === Boolean(expected.disabled);
+              });
+              if (!restored) {
+                throw new Error("AniList activity preference restoration verification failed");
+              }
+              console.log("Restored AniList list-activity preferences.");
+            }
+          }
+
+          const final = [];
+          for (const target of targets) {
+            const media = await readMedia(target.id);
+            const entry = media.mediaListEntry;
+            final.push({
+              label: target.label,
+              status: entry?.status ?? null,
+              progress: entry?.progress ?? null,
+              expected: target.episodes,
+            });
+          }
+
+          const bad = final.filter((x) => x.status !== "COMPLETED" || x.progress !== x.expected);
+          if (bad.length) {
+            throw new Error(`Final verification failed: ${JSON.stringify(bad)}`);
+          }
+
+          console.log("FINAL_VERIFICATION_OK");
+          console.log(JSON.stringify({ targetUser, restored, results, final }, null, 2));
+          NODE
