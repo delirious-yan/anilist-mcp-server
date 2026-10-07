@@ -1,5 +1,7 @@
 name: Authorized AniDB Completed-only Apply
 
+# Resume the verified 48 compatible remaining targets; hold two partial-history mismatches.
+
 on:
   push:
     branches:
@@ -180,7 +182,7 @@ jobs:
             --user "$TARGET_USER" \
             --output "$RUNNER_TEMP/anidb-write-report.json" \
             --apply \
-            --confirm "APPLY_COMPLETED_ONLY_108" \
+            --confirm "APPLY_COMPLETED_ONLY_48" \
             --activity-mode suppress
 
       - name: Encrypt migration report
