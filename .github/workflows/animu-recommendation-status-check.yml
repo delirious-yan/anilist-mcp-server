@@ -1,4 +1,4 @@
-name: Inspect Demon Slayer Specials
+name: Complete Demon Slayer Franchise
 
 on:
   push:
@@ -9,60 +9,187 @@ permissions:
   contents: read
 
 jobs:
-  inspect:
+  update:
     runs-on: ubuntu-latest
     env:
       ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
+      TARGET_USER: Luciedmeo
     steps:
-      - name: Inspect Demon Slayer specials and OVAs
+      - name: Complete released Demon Slayer entries
         shell: bash
         run: |
+          if [ -z "$ANILIST_ACCESS_TOKEN" ]; then
+            echo "::error::ANILIST_ACCESS_TOKEN is not configured."
+            exit 1
+          fi
+
           node <<'NODE'
           const endpoint="https://graphql.anilist.co";
           const token=process.env.ANILIST_ACCESS_TOKEN;
+          const targetUser=process.env.TARGET_USER;
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-          const searches=[
-            "Kimetsu Gakuen: Valentine-hen",
-            "Kimetsu no Yaiba: Kyouda no Kizuna",
-            "Kimetsu no Yaiba: Natagumo Yama-hen",
-            "Kimetsu no Yaiba: Hashira Gou Kaigi",
-            "Kimetsu no Yaiba: Asakusa-hen",
-            "Kimetsu no Yaiba: Tsuzumi Yashiki-hen",
-            "Kimetsu no Yaiba: Yuukaku-hen Tokubetsu Henshuuban"
+
+          const targets=[
+            {id:101922,label:"Demon Slayer: Kimetsu no Yaiba"},
+            {id:112151,label:"Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train"},
+            {id:129874,label:"Demon Slayer: Kimetsu no Yaiba Mugen Train Arc"},
+            {id:142329,label:"Demon Slayer: Kimetsu no Yaiba Entertainment District Arc"},
+            {id:145139,label:"Demon Slayer: Kimetsu no Yaiba Swordsmith Village Arc"},
+            {id:166240,label:"Demon Slayer: Kimetsu no Yaiba Hashira Training Arc"},
+            {id:178788,label:"Demon Slayer: Kimetsu no Yaiba Infinity Castle"},
+            {id:129627,label:"Junior High and High School!! Kimetsu Academy Story: Valentine Edition"},
+            {id:154541,label:"Junior High and High School!! Kimetsu Academy Story: Kimetsu no Utage Special Edition"}
           ];
+
           async function gql(query,variables={}){
-            for(let i=0;i<5;i++){
-              const res=await fetch(endpoint,{method:"POST",headers:{
-                "Content-Type":"application/json","Accept":"application/json",
-                "Authorization":"Bearer "+token
-              },body:JSON.stringify({query,variables})});
+            for(let attempt=0;attempt<6;attempt++){
+              const res=await fetch(endpoint,{
+                method:"POST",
+                headers:{
+                  "Content-Type":"application/json",
+                  "Accept":"application/json",
+                  "Authorization":"Bearer "+token
+                },
+                body:JSON.stringify({query,variables})
+              });
               let p=null; try{p=await res.json()}catch{}
-              if((res.status===429||p?.errors?.some(e=>e?.status===429))&&i<4){await sleep(3000*(i+1));continue;}
+              const rl=res.status===429||p?.errors?.some(e=>e?.status===429||/too many requests/i.test(e?.message??""));
+              if(rl&&attempt<5){
+                const retryAfter=Number(res.headers.get("retry-after")||0);
+                await sleep(Math.max(retryAfter*1000,4000*(attempt+1)));
+                continue;
+              }
               if(!res.ok||p?.errors) throw new Error(JSON.stringify(p?.errors??p??{status:res.status}));
-              await sleep(1200);
+              await sleep(1800);
               return p.data;
             }
+            throw new Error("AniList retries exhausted");
           }
-          for(const search of searches){
-            const d=await gql(`query($search:String){
-              Media(search:$search,type:ANIME){
-                id format status episodes duration
+
+          function hasDate(v){return Boolean(v&&(v.year||v.month||v.day));}
+
+          async function getViewer(){
+            return (await gql(`query{
+              Viewer{name options{disabledListActivity{type disabled}}}
+            }`)).Viewer;
+          }
+
+          async function getMedia(id){
+            const d=await gql(`query($id:Int){
+              Media(id:$id,type:ANIME){
+                id format status episodes
                 title{english romaji}
-                mediaListEntry{id status progress}
+                mediaListEntry{
+                  id status progress
+                  startedAt{year month day}
+                  completedAt{year month day}
+                }
               }
-            }`,{search});
-            const m=d.Media;
+            }`,{id});
+            return d.Media;
+          }
+
+          async function setOptions(options){
+            await gql(`mutation($options:[ListActivityOptionInput]){
+              UpdateUser(disabledListActivity:$options){id}
+            }`,{options});
+          }
+
+          async function saveComplete(mediaId,progress){
+            return (await gql(`mutation($mediaId:Int,$progress:Int){
+              SaveMediaListEntry(mediaId:$mediaId,status:COMPLETED,progress:$progress){
+                id status progress
+                startedAt{year month day}
+                completedAt{year month day}
+              }
+            }`,{mediaId,progress})).SaveMediaListEntry;
+          }
+
+          async function clearAutoDates(entry,before){
+            const vars={id:entry.id};
+            let needed=false;
+            if(!hasDate(before?.startedAt)&&hasDate(entry.startedAt)){vars.startedAt={};needed=true;}
+            if(!hasDate(before?.completedAt)&&hasDate(entry.completedAt)){vars.completedAt={};needed=true;}
+            if(needed){
+              await gql(`mutation($id:Int,$startedAt:FuzzyDateInput,$completedAt:FuzzyDateInput){
+                SaveMediaListEntry(id:$id,startedAt:$startedAt,completedAt:$completedAt){id}
+              }`,vars);
+            }
+          }
+
+          const viewer=await getViewer();
+          if(viewer.name!==targetUser) throw new Error("Unexpected AniList account: "+viewer.name);
+
+          const resolved=[];
+          for(const target of targets){
+            const m=await getMedia(target.id);
+            if(!m) throw new Error("Missing AniList media "+target.id);
+            if(m.status!=="FINISHED") throw new Error(target.label+" is not FINISHED");
+            if(!Number.isInteger(m.episodes)||m.episodes<1) throw new Error(target.label+" has unsafe episode count "+m.episodes);
+            resolved.push({target,m});
+          }
+
+          console.log("BEFORE");
+          for(const {target,m} of resolved){
             console.log(JSON.stringify({
-              search,
-              id:m?.id??null,
-              title:m?.title?.english||m?.title?.romaji||null,
-              romaji:m?.title?.romaji||null,
-              format:m?.format??null,
-              status:m?.status??null,
-              episodes:m?.episodes??null,
-              duration:m?.duration??null,
-              listStatus:m?.mediaListEntry?.status??null,
-              progress:m?.mediaListEntry?.progress??null
+              id:m.id,title:m.title.english||m.title.romaji,label:target.label,
+              format:m.format,episodes:m.episodes,
+              status:m.mediaListEntry?.status??null,
+              progress:m.mediaListEntry?.progress??null
             }));
           }
+
+          const needs=resolved.filter(({m})=>
+            m.mediaListEntry?.status!=="COMPLETED"||m.mediaListEntry?.progress!==m.episodes
+          );
+
+          const original=(viewer.options?.disabledListActivity??[]).map(x=>({
+            type:x.type,disabled:Boolean(x.disabled)
+          }));
+          let changed=false;
+
+          try{
+            if(needs.length){
+              const suppressed=original.map(x=>({
+                ...x,disabled:x.type==="COMPLETED"?true:x.disabled
+              }));
+              changed=suppressed.some((x,i)=>x.disabled!==original[i]?.disabled);
+              if(changed){
+                await setOptions(suppressed);
+                console.log("Temporarily suppressed COMPLETED activity.");
+              }
+
+              for(const {target,m} of needs){
+                const before=m.mediaListEntry;
+                const saved=await saveComplete(m.id,m.episodes);
+                await clearAutoDates(saved,before);
+                const verify=await getMedia(m.id);
+                if(verify.mediaListEntry?.status!=="COMPLETED"||verify.mediaListEntry?.progress!==verify.episodes){
+                  throw new Error(target.label+" verification failed");
+                }
+                console.log("UPDATED: "+target.label+" -> COMPLETED "+verify.episodes+"/"+verify.episodes);
+              }
+            }
+          } finally {
+            if(changed){
+              await setOptions(original);
+              console.log("Restored AniList list-activity preferences.");
+            }
+          }
+
+          const final=[];
+          for(const target of targets){
+            const m=await getMedia(target.id);
+            final.push({
+              id:m.id,title:m.title.english||m.title.romaji,
+              episodes:m.episodes,status:m.mediaListEntry?.status??null,
+              progress:m.mediaListEntry?.progress??null
+            });
+          }
+
+          const bad=final.filter(x=>x.status!=="COMPLETED"||x.progress!==x.episodes);
+          if(bad.length) throw new Error("Final verification failed: "+JSON.stringify(bad));
+
+          console.log("FINAL_VERIFICATION_OK");
+          console.log(JSON.stringify({updatedCount:needs.length,final},null,2));
           NODE
