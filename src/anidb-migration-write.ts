@@ -193,6 +193,33 @@ async function probeAuthenticatedListEntry(
   return parseProbedListEntry(data);
 }
 
+async function preflightCompletedActions(
+  client: AniListClient,
+  actions: Array<{ anilistId: number; progress: number }>,
+): Promise<void> {
+  const ctx = client.ctx();
+  const header = ctx.requireAuth();
+  const query = `query($id:Int){Media(id:$id,type:ANIME){id episodes}}`;
+
+  for (const action of actions) {
+    const data = MediaEpisodeProbeSchema.parse(
+      await ctx.gql.request<unknown>(query, { id: action.anilistId }, header, {
+        skipCache: true,
+      }),
+    );
+    if (!data.Media) {
+      throw new Error(
+        `Preflight could not resolve approved AniList media ${action.anilistId}; no list writes applied.`,
+      );
+    }
+    if (data.Media.episodes != null && data.Media.episodes !== action.progress) {
+      throw new Error(
+        `Preflight episode mismatch for AniList media ${action.anilistId}: historical progress ${action.progress}, AniList episodes ${data.Media.episodes}; no list writes applied.`,
+      );
+    }
+  }
+}
+
 async function fetchActivityOptions(client: AniListClient): Promise<ActivityOption[]> {
   const ctx = client.ctx();
   const header = ctx.requireAuth();
