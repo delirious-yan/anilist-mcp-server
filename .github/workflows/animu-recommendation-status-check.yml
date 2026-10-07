@@ -1,4 +1,4 @@
-name: Verify Psycho-Pass Hiatus
+name: Verify Anime Hiatus Timeline
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
     env:
       ANIDB_HISTORY_BUNDLE_B64: ${{ secrets.ANIDB_HISTORY_BUNDLE_B64 }}
     steps:
-      - name: Analyze historical watch dates around Psycho-Pass
+      - name: Analyze historical viewing gaps
         shell: bash
         run: |
           if [ -z "$ANIDB_HISTORY_BUNDLE_B64" ]; then
@@ -25,33 +25,54 @@ jobs:
           node <<'NODE'
           const fs=require("fs");
           const p=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/history.json","utf8"));
-          const anime=(p.anime||[]).filter(x=>x.lastViewedAt>0);
-          const norm=s=>(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
-          const psycho=anime.filter(x=>norm(x.title).includes("psychopass")||norm(x.englishTitle).includes("psychopass"));
-          console.log("PSYCHO_PASS_MATCHES");
-          for(const x of psycho) console.log(JSON.stringify({
-            title:x.title,englishTitle:x.englishTitle||null,watchState:x.watchState,
-            watched:x.watchedNormalEpisodes,total:x.totalEpisodes,
-            firstViewedDate:x.firstViewedDate||null,lastViewedDate:x.lastViewedDate||null
+          const watched=(p.anime||[])
+            .filter(x=>x.lastViewedAt>0)
+            .sort((a,b)=>a.lastViewedAt-b.lastViewedAt);
+
+          const rows=watched.map(x=>({
+            title:x.title,
+            state:x.watchState,
+            watched:x.watchedNormalEpisodes,
+            total:x.totalEpisodes,
+            first:x.firstViewedDate,
+            last:x.lastViewedDate,
+            t:x.lastViewedAt
           }));
-          const completed=anime.filter(x=>x.watchState==="completed").sort((a,b)=>a.lastViewedAt-b.lastViewedAt);
-          if(!psycho.length){ console.log("NO_PSYCHO_PASS_HISTORY"); process.exit(0); }
-          const s1=psycho.sort((a,b)=>a.lastViewedAt-b.lastViewedAt)[0];
-          const idx=completed.findIndex(x=>x.anidbId===s1.anidbId);
-          const before=idx>=0?completed.slice(Math.max(0,idx-5),idx):[];
-          const after=idx>=0?completed.slice(idx+1,idx+8):[];
-          console.log("COMPLETED_BEFORE");
-          for(const x of before) console.log(JSON.stringify({title:x.title,lastViewedDate:x.lastViewedDate}));
-          console.log("COMPLETED_AFTER");
-          for(const x of after) console.log(JSON.stringify({title:x.title,lastViewedDate:x.lastViewedDate}));
-          if(after[0]){
-            const days=Math.round((after[0].lastViewedAt-s1.lastViewedAt)/86400);
-            console.log("NEXT_COMPLETED_GAP_DAYS="+days);
+
+          const gaps=[];
+          for(let i=1;i<rows.length;i++){
+            const days=Math.round((rows[i].t-rows[i-1].t)/86400);
+            gaps.push({days,before:rows[i-1],after:rows[i]});
           }
-          const later=anime.filter(x=>x.lastViewedAt>s1.lastViewedAt).sort((a,b)=>a.lastViewedAt-b.lastViewedAt).slice(0,10);
-          console.log("ANY_WATCHED_AFTER");
-          for(const x of later) console.log(JSON.stringify({
-            title:x.title,watchState:x.watchState,watched:x.watchedNormalEpisodes,total:x.totalEpisodes,lastViewedDate:x.lastViewedDate
-          }));
+          gaps.sort((a,b)=>b.days-a.days);
+
+          console.log("LARGEST_GAPS");
+          for(const g of gaps.slice(0,12)){
+            console.log(JSON.stringify({
+              days:g.days,
+              before:{title:g.before.title,last:g.before.last},
+              after:{title:g.after.title,last:g.after.last}
+            }));
+          }
+
+          console.log("WATCHES_2011_2016");
+          for(const x of rows){
+            const y=x.last?.year;
+            if(y>=2011 && y<=2016){
+              console.log(JSON.stringify({
+                title:x.title,state:x.state,watched:x.watched,total:x.total,
+                first:x.first,last:x.last
+              }));
+            }
+          }
+
+          console.log("YEAR_COUNTS");
+          const byYear={};
+          for(const x of rows){
+            const y=x.last?.year;
+            if(!y) continue;
+            byYear[y]=(byYear[y]||0)+1;
+          }
+          console.log(JSON.stringify(byYear));
           NODE
           rm -f "$RUNNER_TEMP/history.json"
