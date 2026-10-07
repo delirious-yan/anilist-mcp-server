@@ -1,4 +1,4 @@
-name: Animu Recommendation Status Check
+name: Animu Recommendation Status Check 2
 
 on:
   push:
@@ -13,68 +13,48 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
-      TARGET_USER: Luciedmeo
     steps:
-      - name: Check candidate watch status
+      - name: Check unrestricted candidates
         shell: bash
         run: |
           node <<'NODE'
           const endpoint="https://graphql.anilist.co";
           const token=process.env.ANILIST_ACCESS_TOKEN;
-          const userName=process.env.TARGET_USER;
           const titles=[
-            "SAKAMOTO DAYS",
-            "Delicious in Dungeon",
-            "PLUTO",
-            "Terminator Zero",
-            "Great Pretender",
-            "BNA",
-            "AJIN: Demi-Human",
-            "SPRIGGAN",
-            "Leviathan",
-            "Moonrise",
-            "My Daemon",
-            "Space Dandy",
-            "Golden Kamuy",
-            "Baccano!",
-            "ODDTAXI",
-            "PSYCHO-PASS",
-            "91 Days",
-            "Samurai Champloo",
-            "Drifters",
-            "Mob Psycho 100",
-            "One Outs",
-            "Kaiji",
-            "Heavenly Delusion",
-            "Mononoke"
+            "Space Dandy","Golden Kamuy","Baccano!","ODDTAXI","PSYCHO-PASS",
+            "91 Days","Samurai Champloo","Drifters","Mob Psycho 100","One Outs",
+            "Kaiji: Ultimate Survivor","Heavenly Delusion","Mononoke"
           ];
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
           async function gql(query,variables={}){
-            const res=await fetch(endpoint,{method:"POST",headers:{
-              "Content-Type":"application/json","Accept":"application/json",
-              ...(token?{Authorization:`Bearer ${token}`}:{})
-            },body:JSON.stringify({query,variables})});
-            const p=await res.json();
-            if(!res.ok||p.errors) throw new Error(JSON.stringify(p.errors??p));
-            return p.data;
+            for(let a=0;a<5;a++){
+              const res=await fetch(endpoint,{method:"POST",headers:{
+                "Content-Type":"application/json","Accept":"application/json",
+                "Authorization":`Bearer ${token}`
+              },body:JSON.stringify({query,variables})});
+              let p=null; try{p=await res.json()}catch{}
+              if((res.status===429||p?.errors?.some(e=>e.status===429))&&a<4){
+                await sleep(3000*(a+1)); continue;
+              }
+              if(!res.ok||p?.errors) return {error:p?.errors??[{status:res.status}]};
+              await sleep(800);
+              return p.data;
+            }
           }
           for(const search of titles){
             const d=await gql(`query($search:String){
               Media(search:$search,type:ANIME){
-                id title{english romaji} episodes format status
+                id title{english romaji} episodes format
                 mediaListEntry{id status progress score}
               }
             }`,{search});
+            if(d?.error){console.log(JSON.stringify({search,error:d.error}));continue;}
             const m=d.Media;
             console.log(JSON.stringify({
-              search,
-              id:m?.id??null,
-              title:m?.title?.english||m?.title?.romaji||null,
-              romaji:m?.title?.romaji||null,
-              episodes:m?.episodes??null,
-              format:m?.format??null,
+              search,id:m?.id??null,title:m?.title?.english||m?.title?.romaji||null,
+              episodes:m?.episodes??null,format:m?.format??null,
               status:m?.mediaListEntry?.status??null,
-              progress:m?.mediaListEntry?.progress??null,
-              score:m?.mediaListEntry?.score??null
+              progress:m?.mediaListEntry?.progress??null
             }));
           }
           NODE
