@@ -1,4 +1,4 @@
-name: Inspect Demon Slayer Franchise
+name: Inspect Demon Slayer Specials
 
 on:
   push:
@@ -14,13 +14,22 @@ jobs:
     env:
       ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
     steps:
-      - name: List Demon Slayer anime entries
+      - name: Inspect Demon Slayer specials and OVAs
         shell: bash
         run: |
           node <<'NODE'
           const endpoint="https://graphql.anilist.co";
           const token=process.env.ANILIST_ACCESS_TOKEN;
           const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const searches=[
+            "Kimetsu Gakuen: Valentine-hen",
+            "Kimetsu no Yaiba: Kyouda no Kizuna",
+            "Kimetsu no Yaiba: Natagumo Yama-hen",
+            "Kimetsu no Yaiba: Hashira Gou Kaigi",
+            "Kimetsu no Yaiba: Asakusa-hen",
+            "Kimetsu no Yaiba: Tsuzumi Yashiki-hen",
+            "Kimetsu no Yaiba: Yuukaku-hen Tokubetsu Henshuuban"
+          ];
           async function gql(query,variables={}){
             for(let i=0;i<5;i++){
               const res=await fetch(endpoint,{method:"POST",headers:{
@@ -30,24 +39,30 @@ jobs:
               let p=null; try{p=await res.json()}catch{}
               if((res.status===429||p?.errors?.some(e=>e?.status===429))&&i<4){await sleep(3000*(i+1));continue;}
               if(!res.ok||p?.errors) throw new Error(JSON.stringify(p?.errors??p??{status:res.status}));
+              await sleep(1200);
               return p.data;
             }
           }
-          const d=await gql(`query{
-            Page(page:1,perPage:50){
-              media(search:"Kimetsu no Yaiba",type:ANIME,sort:START_DATE){
-                id format status episodes
+          for(const search of searches){
+            const d=await gql(`query($search:String){
+              Media(search:$search,type:ANIME){
+                id format status episodes duration
                 title{english romaji}
-                startDate{year month day}
                 mediaListEntry{id status progress}
               }
-            }
-          }`);
-          for(const m of d.Page.media){
+            }`,{search});
+            const m=d.Media;
             console.log(JSON.stringify({
-              id:m.id,title:m.title.english||m.title.romaji,romaji:m.title.romaji,
-              format:m.format,status:m.status,episodes:m.episodes,startDate:m.startDate,
-              listStatus:m.mediaListEntry?.status??null,progress:m.mediaListEntry?.progress??null
+              search,
+              id:m?.id??null,
+              title:m?.title?.english||m?.title?.romaji||null,
+              romaji:m?.title?.romaji||null,
+              format:m?.format??null,
+              status:m?.status??null,
+              episodes:m?.episodes??null,
+              duration:m?.duration??null,
+              listStatus:m?.mediaListEntry?.status??null,
+              progress:m?.mediaListEntry?.progress??null
             }));
           }
           NODE
