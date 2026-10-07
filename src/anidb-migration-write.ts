@@ -386,8 +386,21 @@ async function main(): Promise<void> {
   );
   const currentList = await fetchWholeAnimeList(client, args.user);
   const snapshotFingerprint = currentListSnapshotFingerprint(currentList);
-  const plan = buildCompletedOnlyWritePlan(targets, currentList);
+  const rawPlan = buildCompletedOnlyWritePlan(targets, currentList);
+  const rawActionFingerprint = completedTargetFingerprint(rawPlan.actions);
+  const compatibilityExcludedActions = rawPlan.actions.filter((action) =>
+    COMPATIBILITY_EXCLUSIONS.has(action.anilistId),
+  );
+  const plan = {
+    ...rawPlan,
+    actions: rawPlan.actions.filter((action) => !COMPATIBILITY_EXCLUSIONS.has(action.anilistId)),
+  };
   const actionFingerprint = completedTargetFingerprint(plan.actions);
+  const compatibilityExclusionsValid =
+    compatibilityExcludedActions.length === COMPATIBILITY_EXCLUSIONS.size &&
+    compatibilityExcludedActions.every(
+      (action) => COMPATIBILITY_EXCLUSIONS.get(action.anilistId) === action.progress,
+    );
 
   const report = {
     generatedAt: new Date().toISOString(),
@@ -401,8 +414,14 @@ async function main(): Promise<void> {
       completedTargetFingerprint: targetFingerprint,
       aniListEntries: currentList.length,
       aniListSnapshotFingerprint: snapshotFingerprint,
+      rawActions: rawPlan.actions.length,
+      rawActionFingerprint,
       actions: plan.actions.length,
       actionFingerprint,
+      compatibilityExcludedActions: compatibilityExcludedActions.map((action) => ({
+        mediaId: action.anilistId,
+        progress: action.progress,
+      })),
       existingTargetEntries: plan.existingTargetEntries.length,
       nonTargetEntries: plan.nonTargetEntries.length,
     },
@@ -424,6 +443,9 @@ async function main(): Promise<void> {
         `Completed target fingerprint: ${targetFingerprint}`,
         `Current AniList entries: ${currentList.length}`,
         `Current AniList snapshot fingerprint: ${snapshotFingerprint}`,
+        `Raw remaining actions: ${rawPlan.actions.length}`,
+        `Raw remaining fingerprint: ${rawActionFingerprint}`,
+        `Compatibility exclusions: ${compatibilityExcludedActions.length}`,
         `Write actions: ${plan.actions.length}`,
         `Write plan fingerprint: ${actionFingerprint}`,
         "Writes applied: 0",
