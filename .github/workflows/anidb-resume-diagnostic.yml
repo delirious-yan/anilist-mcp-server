@@ -1,7 +1,7 @@
 name: AniDB Resume Diagnostic
 
 # Re-run to scan remaining targets and fingerprint the compatible resume set.
-# Validate the guarded 48-entry resumed writer build before apply.
+# Final read-only verification after successful compatible migration apply.
 
 on:
   push:
