@@ -194,92 +194,85 @@ Do not invent dates when the export does not establish them clearly.
 
 ## Implementation status
 
-The read-only migration implementation is staged in draft PR #1 on branch
-`feat/anidb-migration-dry-run`.
+The repo-hosted migration tooling is implemented and the completed-only migration
+has been executed against `Luciedmeo`.
 
-Implemented:
+Read-only baseline:
 
-- `src/importers/anidb.ts`: parses raw AniDB exports, reconstructs watched history, validates normalized private history bundles, performs exact ID mapping, conservative fallback scoring, and comparison logic.
-- `src/anidb-migration.ts`: read-only CLI supporting either raw exports or `--history-bundle`, then comparing against the current AniList list and emitting a JSON report.
-- `src/__tests__/anidbImporter.test.ts`: sanitized synthetic tests, including normalized-history-bundle coverage.
-- `.github/workflows/anidb-dry-run.yml`: repo-hosted GitHub Actions dry-run with private input from `ANIDB_HISTORY_BUNDLE_B64`, zero mutations, encrypted report artifact, and plaintext cleanup.
-- `docs/anidb-migration.md`: repo-only execution/privacy model.
-- No personal AniDB export, normalized bundle, plaintext report, or AniList credential is committed.
+- Dry-run run `37466671602`: successful, zero writes.
+- Mapping result: 196 exact, 10 fallback, 1 curated split, 1 curated no-op,
+  0 unresolved.
+- Historical state: 132 Completed targets, 42 partial-history entries,
+  14 unwatched, and 20 unknown.
+- The user approved the completed-only migration policy.
+- The guarded write phase was merged to `main` via PR #2.
 
-Validation status:
+Execution choices:
 
-- GitHub Actions is enabled.
-- CI run #16 passed on Node 20/22/24 after the repo-only workflow and normalized-bundle changes. Build, tests, lint, formatting, coverage, MCPB validation, production audit, and dependency-signature verification all passed.
-- The repo-hosted migration workflow itself was created successfully and its first run stopped exactly at the expected secret gate because `ANIDB_HISTORY_BUNDLE_B64` has not yet been configured.
-- No AniList writes have occurred.
+- AniList activity mode: **suppress** during historical Completed imports, then
+  restore and verify.
+- Adult-content visibility: user approved **temporary enable** only for the
+  migration, followed by restoration and verification.
+- No scores or historical dates are imported.
+- Partial, unwatched, and unknown history remains untouched.
 
-Dry-run review status:
+Write execution:
 
-- Repository secret `ANIDB_HISTORY_BUNDLE_B64`: **configured**.
-- Repo-hosted dry-run run `37466671602`: **successful**.
-- Result: 196 exact mappings, 10 high-confidence fallbacks, 1 curated split mapping, 1 curated no-op aggregate, **0 unresolved mappings**, and **0 writes**.
-- Comparison: 129 ordinary missing Completed candidates, 1 Gintama split Completed candidate (2 AniList entries), 42 partial-history entries, 32 unwatched/unknown no-write entries, and 3 already-Completed overlaps.
-- Detailed review and proposed first-write policy: `docs/anidb-migration-review.md`.
-- Current head CI passed on Node 20/22/24, including build, tests, lint, formatting, coverage, MCPB validation, production audit, and dependency-signature verification.
+- Interrupted apply run `37555042109` successfully created **58** approved
+  Completed entries before encountering an AniList episode-count incompatibility.
+  The failing entry was rolled back. Activity and adult-content preferences were
+  restored and verified.
+- Diagnostic run `37557256796` found exactly two compatibility exceptions:
+  - AniDB `5406` → AniList `2966`: historical progress 12, AniList episode
+    count 13.
+  - AniDB `6327` → AniList `5081`: historical progress 12, AniList episode
+    count 15.
+- Those two were intentionally excluded rather than overstating watched progress.
+- Resumed apply run `37557510964` successfully created the remaining
+  **48 compatible entries**.
+- During the resumed run, temporary adult visibility was enabled and verified,
+  all previously unavailable adult-only targets passed preflight, Completed feed
+  activity remained suppressed, and both account preferences were restored and
+  verified afterward.
 
-Completed-only write phase:
+Final verification:
 
-- User approval: **granted 2026-10-06**.
-- Guarded completed-only write phase: **merged to `main` via PR #2** at commit `04cb4d11b9a22e50f9c26d8a1b9a34356ac2ab59`.
-- Repo-hosted plan run `37471359927`: **successful, zero writes**.
-- Final PR #2 CI run `37475944878`: **green** on Node 20/22/24; quality, formatting, coverage, MCPB validation, production audit, and dependency-signature verification all passed.
-- Fingerprinted Completed target set: **132 unique AniList media targets**.
-- Fingerprinted reviewed write plan: **130 missing entries**.
-- Exact apply confirmation: `APPLY_COMPLETED_ONLY_130`.
-- Apply preserves every existing AniList entry, writes no scores/dates, excludes all partial/unwatched/unknown history, probes each media immediately before mutation, verifies every creation, and rolls back a newly-created entry if verification fails.
-- Apply is locked to authenticated AniList user `Luciedmeo` and the reviewed target/snapshot/plan fingerprints.
-- The only remaining account-side prerequisites are a repo-safe AniList access token in GitHub secret `ANILIST_ACCESS_TOKEN` and an explicit activity-feed choice (`suppress` or `preserve`) at workflow dispatch.
+- Final read-only verification run: `37564331110`.
+- AniList entries visible with temporary adult visibility: **133**.
+- Historical Completed target entries now present and matching: **130 / 132**.
+- Target mismatches: **0**.
+- Remaining actions: exactly **2**, both the episode-count compatibility
+  exceptions above.
+- Compatible remaining actions: **0**.
+- Adult-content visibility was restored to its original value: **false**.
+- No additional automatic completed-only writes are justified.
 
-The initial 131-action estimate was based on source-record comparison output.
-The dedicated write planner deduplicates historical evidence by AniList media ID,
-which is why the reviewed executable plan contains **130** unique missing entries.
+See `docs/anidb-migration-final.md` for the final migration record.
+
+## Final migration state
+
+The completed-only migration is **finished** under the approved conservative
+policy.
+
+The two remaining historical records are deliberately not marked Completed
+because AniList models more episodes than the watched evidence proves. They must
+not be forced to Completed without a separate explicit user decision.
+
+The 42 partial-history entries also remain unchanged. They are preserved as
+historical evidence for a future, separately reviewed migration phase.
 
 ## Resume point
 
-When continuing:
+When continuing this project:
 
-1. Treat GitHub as the sole project workspace/source of truth.
-2. PR #1 contains a fully working repo-hosted read-only migration flow; CI is green.
-3. The private AniDB history secret is configured and the successful reviewed dry-run is run `37466671602`.
-4. Read `docs/anidb-migration-review.md` for the current reviewed migration result and recommended completed-only policy.
-5. The completed-only policy is approved. Use branch `feat/anidb-completed-only-write` and verified plan run `37471359927`.
-6. Before apply, store a repo-safe `ANILIST_ACCESS_TOKEN` and choose whether the 130 imported completions should suppress or preserve AniList feed activity.
-7. Run only the guarded workflow `.github/workflows/anidb-completed-only.yml` in `apply` mode with confirmation `APPLY_COMPLETED_ONLY_130`.
-8. Keep the 42 partial-history entries out of this first write pass unless the user separately decides how they should be represented.
-
-## Refreshed completed-only apply baseline
-
-- User-selected activity behavior: **suppress** COMPLETED feed activity during apply, then restore and verify preferences.
-- A guarded apply refused to proceed because the AniList snapshot changed.
-- Read-only refresh run `37484756413` reviewed the new state.
-- Current AniList entries: **27**
-- Existing approved target entries: **24**, with **0 mismatches**
-- Non-target entries: **3**
-- Remaining missing approved Completed entries: **108**
-- Refreshed snapshot fingerprint: `0d31a07c448e671a569ea106b4b7e7658c485ff0f6d69d65aa239f77f3208f06`
-- Refreshed remaining-plan fingerprint: `2f7125acdb1053773180b21fa1c1962402890d84f181584859eb0f27130ea617`
-- Apply confirmation is now `APPLY_COMPLETED_ONLY_108`.
-
-
-## Completed-only apply blocker: adult-only historical targets
-
-- User-selected activity behavior remains **suppress**, with COMPLETED activity restored and verified after the migration.
-- Authorized apply attempts `37494637027` and `37494848330` applied **zero writes**.
-- The first attempt stopped on a stale confirmation guard; the second stopped on an AniList 404 before any write.
-- Read-only diagnostic run `37496078488` verified the refreshed 108-action baseline and successfully tested suppress/restore behavior.
-- The diagnostic found exactly **5** remaining targets that return AniList HTTP 404 while authenticated:
-  - AniDB `242` → AniList `382`
-  - AniDB `3310` → AniList `1632`
-  - AniDB `2747` → AniList `2445`
-  - AniDB `3126` → AniList `2539`
-  - AniDB `2693` → AniList `3050`
-- All five are adult-only historical titles. AniList's API exposes a `displayAdultContent` account option; the migration must not change that account preference without explicit user approval.
-- Safe choices:
-  1. temporarily enable `displayAdultContent` for the guarded migration, verify the five targets become accessible, then restore the original setting and verify restoration; or
-  2. leave the preference untouched and skip these five, reducing the remaining completed-only pass from 108 to 103 entries.
-- No further write run should execute until the user chooses between those two options.
+1. Treat GitHub as the sole project workspace and source of truth.
+2. Consider the completed-only migration complete at **130 of 132** safely
+   representable historical Completed targets.
+3. Do not rerun the completed-only writer as a normal next step.
+4. If the user wants to continue migration work, review the **42 partial-history
+   entries** as a separate phase.
+5. Keep AniDB `5406` → AniList `2966` and AniDB `6327` → AniList `5081`
+   excluded unless the user separately decides how the episode-count mismatch
+   should be represented.
+6. Preserve existing/newer AniList data, and continue to avoid importing AniDB
+   community ratings as personal scores or uncertain historical dates.
