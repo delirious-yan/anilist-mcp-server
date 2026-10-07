@@ -1,4 +1,4 @@
-name: Animu Recommendation Status Check 2
+name: Verify Psycho-Pass Hiatus
 
 on:
   push:
@@ -9,52 +9,49 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  verify:
     runs-on: ubuntu-latest
     env:
-      ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
+      ANIDB_HISTORY_BUNDLE_B64: ${{ secrets.ANIDB_HISTORY_BUNDLE_B64 }}
     steps:
-      - name: Check unrestricted candidates
+      - name: Analyze historical watch dates around Psycho-Pass
         shell: bash
         run: |
+          if [ -z "$ANIDB_HISTORY_BUNDLE_B64" ]; then
+            echo "::error::ANIDB_HISTORY_BUNDLE_B64 is not configured."
+            exit 1
+          fi
+          printf '%s' "$ANIDB_HISTORY_BUNDLE_B64" | base64 --decode | gzip -dc > "$RUNNER_TEMP/history.json"
           node <<'NODE'
-          const endpoint="https://graphql.anilist.co";
-          const token=process.env.ANILIST_ACCESS_TOKEN;
-          const titles=[
-            "Space Dandy","Golden Kamuy","Baccano!","ODDTAXI","PSYCHO-PASS",
-            "91 Days","Samurai Champloo","Drifters","Mob Psycho 100","One Outs",
-            "Kaiji: Ultimate Survivor","Heavenly Delusion","Mononoke"
-          ];
-          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-          async function gql(query,variables={}){
-            for(let a=0;a<5;a++){
-              const res=await fetch(endpoint,{method:"POST",headers:{
-                "Content-Type":"application/json","Accept":"application/json",
-                "Authorization":`Bearer ${token}`
-              },body:JSON.stringify({query,variables})});
-              let p=null; try{p=await res.json()}catch{}
-              if((res.status===429||p?.errors?.some(e=>e.status===429))&&a<4){
-                await sleep(3000*(a+1)); continue;
-              }
-              if(!res.ok||p?.errors) return {error:p?.errors??[{status:res.status}]};
-              await sleep(800);
-              return p.data;
-            }
+          const fs=require("fs");
+          const p=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/history.json","utf8"));
+          const anime=(p.anime||[]).filter(x=>x.lastViewedAt>0);
+          const norm=s=>(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+          const psycho=anime.filter(x=>norm(x.title).includes("psychopass")||norm(x.englishTitle).includes("psychopass"));
+          console.log("PSYCHO_PASS_MATCHES");
+          for(const x of psycho) console.log(JSON.stringify({
+            title:x.title,englishTitle:x.englishTitle||null,watchState:x.watchState,
+            watched:x.watchedNormalEpisodes,total:x.totalEpisodes,
+            firstViewedDate:x.firstViewedDate||null,lastViewedDate:x.lastViewedDate||null
+          }));
+          const completed=anime.filter(x=>x.watchState==="completed").sort((a,b)=>a.lastViewedAt-b.lastViewedAt);
+          if(!psycho.length){ console.log("NO_PSYCHO_PASS_HISTORY"); process.exit(0); }
+          const s1=psycho.sort((a,b)=>a.lastViewedAt-b.lastViewedAt)[0];
+          const idx=completed.findIndex(x=>x.anidbId===s1.anidbId);
+          const before=idx>=0?completed.slice(Math.max(0,idx-5),idx):[];
+          const after=idx>=0?completed.slice(idx+1,idx+8):[];
+          console.log("COMPLETED_BEFORE");
+          for(const x of before) console.log(JSON.stringify({title:x.title,lastViewedDate:x.lastViewedDate}));
+          console.log("COMPLETED_AFTER");
+          for(const x of after) console.log(JSON.stringify({title:x.title,lastViewedDate:x.lastViewedDate}));
+          if(after[0]){
+            const days=Math.round((after[0].lastViewedAt-s1.lastViewedAt)/86400);
+            console.log("NEXT_COMPLETED_GAP_DAYS="+days);
           }
-          for(const search of titles){
-            const d=await gql(`query($search:String){
-              Media(search:$search,type:ANIME){
-                id title{english romaji} episodes format
-                mediaListEntry{id status progress score}
-              }
-            }`,{search});
-            if(d?.error){console.log(JSON.stringify({search,error:d.error}));continue;}
-            const m=d.Media;
-            console.log(JSON.stringify({
-              search,id:m?.id??null,title:m?.title?.english||m?.title?.romaji||null,
-              episodes:m?.episodes??null,format:m?.format??null,
-              status:m?.mediaListEntry?.status??null,
-              progress:m?.mediaListEntry?.progress??null
-            }));
-          }
+          const later=anime.filter(x=>x.lastViewedAt>s1.lastViewedAt).sort((a,b)=>a.lastViewedAt-b.lastViewedAt).slice(0,10);
+          console.log("ANY_WATCHED_AFTER");
+          for(const x of later) console.log(JSON.stringify({
+            title:x.title,watchState:x.watchState,watched:x.watchedNormalEpisodes,total:x.totalEpisodes,lastViewedDate:x.lastViewedDate
+          }));
           NODE
+          rm -f "$RUNNER_TEMP/history.json"
