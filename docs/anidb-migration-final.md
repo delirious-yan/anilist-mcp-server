@@ -25,10 +25,10 @@ the temporary adult-content preference were restored and verified.
 
 Read-only diagnostics then identified two episode-model incompatibilities:
 
-| AniDB | AniList | Historical watched progress | AniList episodes | Decision |
-| ---: | ---: | ---: | ---: | --- |
-| 5406 | 2966 | 12 | 13 | Exclude from automatic Completed migration |
-| 6327 | 5081 | 12 | 15 | Exclude from automatic Completed migration |
+| AniDB | AniList | Historical watched progress | AniList episodes | Decision                                   |
+| ----: | ------: | --------------------------: | ---------------: | ------------------------------------------ |
+|  5406 |    2966 |                          12 |               13 | Exclude from automatic Completed migration |
+|  6327 |    5081 |                          12 |               15 | Exclude from automatic Completed migration |
 
 Run `37557510964` then applied the remaining **48 compatible** Completed
 entries successfully.
