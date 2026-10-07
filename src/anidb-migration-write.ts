@@ -490,15 +490,28 @@ async function main(): Promise<void> {
     [currentList.length === APPROVED.initialAniListEntries, "AniList list size changed"],
     [
       snapshotFingerprint === APPROVED.initialAniListSnapshotFingerprint,
-      "AniList snapshot changed since reviewed dry-run",
+      "AniList snapshot changed since reviewed resume diagnostic",
     ],
-    [plan.actions.length === APPROVED.actionCount, "Completed-only action count changed"],
-    [actionFingerprint === APPROVED.actionFingerprint, "Completed-only plan fingerprint changed"],
+    [rawPlan.actions.length === APPROVED.rawActionCount, "Raw remaining action count changed"],
+    [
+      rawActionFingerprint === APPROVED.rawActionFingerprint,
+      "Raw remaining action fingerprint changed",
+    ],
+    [compatibilityExclusionsValid, "Compatibility exclusion set changed"],
+    [plan.actions.length === APPROVED.actionCount, "Compatible action count changed"],
+    [
+      actionFingerprint === APPROVED.actionFingerprint,
+      "Compatible write plan fingerprint changed",
+    ],
   ] as const;
   const failedGuard = guards.find(([ok]) => !ok);
   if (failedGuard) {
     throw new Error(`${failedGuard[1]}. Run/review a fresh dry-run before any migration write.`);
   }
+
+  // Validate every compatible remaining target against AniList's current
+  // episode count before suppressing feed activity or touching the list.
+  await preflightCompletedActions(client, plan.actions);
 
   let originalActivityOptions: ActivityOption[] | undefined;
   let activityChanged = false;
@@ -555,13 +568,16 @@ async function main(): Promise<void> {
 
   const finalList = await fetchWholeAnimeList(client, args.user);
   const finalByMedia = new Map(finalList.map((entry) => [entry.mediaId, entry]));
-  const missingOrWrong = targets.filter((target) => {
+  const requiredTargets = targets.filter(
+    (target) => !COMPATIBILITY_EXCLUSIONS.has(target.anilistId),
+  );
+  const missingOrWrong = requiredTargets.filter((target) => {
     const entry = finalByMedia.get(target.anilistId);
     return !entry || entry.status !== "COMPLETED" || entry.progress !== target.progress;
   });
   if (missingOrWrong.length) {
     throw new Error(
-      `Post-write verification found ${missingOrWrong.length} completed historical targets missing or mismatched`,
+      `Post-write verification found ${missingOrWrong.length} compatible completed historical targets missing or mismatched`,
     );
   }
 
@@ -569,7 +585,9 @@ async function main(): Promise<void> {
     [
       "Completed-only migration apply finished",
       `Target: ${args.user}`,
-      `Planned actions: ${plan.actions.length}`,
+      `Raw remaining actions: ${rawPlan.actions.length}`,
+      `Compatibility exclusions: ${compatibilityExcludedActions.length}`,
+      `Planned compatible actions: ${plan.actions.length}`,
       `Applied: ${report.writes.filter((item) => item.result === "applied").length}`,
       `Skipped concurrent existing: ${report.writes.filter((item) => item.result === "skipped_existing").length}`,
       `Activity mode: ${args.activityMode}`,
