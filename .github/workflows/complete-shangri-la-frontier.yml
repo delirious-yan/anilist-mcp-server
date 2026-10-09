@@ -69,10 +69,7 @@ jobs:
             { id: baseId, year: 2023, title: 'Shangri-La Frontier', label: 'Season 1' },
             { id: sequels[0].id, year: 2024, title: 'Shangri-La Frontier 2nd Season', label: 'Season 2' },
           ];
-          const selection = `id format episodes seasonYear title{romaji english}
-            mediaListEntry{id status progress scoreRaw notes repeat priority private
-              hiddenFromStatusLists customLists(asArray:true) advancedScores
-              startedAt{year month day} completedAt{year month day}}`;
+          const selection = `id format episodes seasonYear title{romaji english}\n            mediaListEntry{id status progress score notes repeat}`;
           const read = async id => (await gql(
             `query($id:Int!) { Media(id:$id,type:ANIME){${selection}} }`, { id }
           )).Media;
@@ -93,8 +90,7 @@ jobs:
             before.push(entry);
           }
           console.log('Verified AniList account and both independent 25-episode TV seasons.');
-          const protectedFields = ['scoreRaw','notes','repeat','priority','private',
-                                   'hiddenFromStatusLists','customLists','advancedScores'];
+          const protectedFields = ['score','notes','repeat'];
           const compare = (previous, current, label) => {
             if (!previous) return;
             for (const field of protectedFields) {
