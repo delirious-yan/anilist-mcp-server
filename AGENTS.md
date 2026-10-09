@@ -132,6 +132,22 @@ directly through a small first-party client (`lib/graphql.ts` +
 own `variables` object and only includes keys that are actually set — GraphQL
 naturally omits absent optional arguments, no dummy placeholder values needed.
 
+## Authenticated owner list updates without a live MCP connector
+
+When an owner explicitly requests a single AniList watch-list change and the AI
+session has GitHub access but no authenticated AniList MCP connection, read
+[`.agents/skills/anilist-github-actions-write/SKILL.md`](.agents/skills/anilist-github-actions-write/SKILL.md)
+**before** declaring the task impossible or using a migration workflow.
+
+An already-connected authenticated MCP client is preferred. The fallback is a
+narrowly authorized GitHub Actions job using an existing AniList token **secret**,
+with account/media validation, smallest-change mutation, authenticated read-back,
+run-log verification, and one-time workflow cleanup. GitHub repository push
+permission is **not** AniList authorization; the owner's current instruction
+must authorize the account modification. Do not treat previous workflow success
+as proof that credentials are available now, and never expose credentials or
+private preferences in this public repository.
+
 ## Commands
 
 ```sh
