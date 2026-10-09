@@ -134,6 +134,9 @@ naturally omits absent optional arguments, no dummy placeholder values needed.
 
 ## Authenticated owner list updates without a live MCP connector
 
+The AniList-specific skill is self-contained for contributors with access only to this repository. An **already owner-trusted** agent with separate legitimate private `mind-self` access may also read [`skills/github-actions-execution/SKILL.md`](https://github.com/delirious-yan/mind-self/blob/main/skills/github-actions-execution/SKILL.md) for general GitHub execution boundaries; never request private access as a prerequisite to public-repo work.
+
+
 When an owner explicitly requests a single AniList watch-list change and the AI
 session has GitHub access but no authenticated AniList MCP connection, read
 [`.agents/skills/anilist-github-actions-write/SKILL.md`](.agents/skills/anilist-github-actions-write/SKILL.md)
