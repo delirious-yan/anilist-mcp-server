@@ -7,6 +7,23 @@
 - Do not instruct the user to `git pull`, run local builds/tests, or maintain a local project copy as part of the normal workflow.
 - Any step that appears to require localhost-only execution must be redesigned into a repo-hosted/remote-safe flow before it is treated as a required project step.
 
+## Future single-title AniList updates — independent of historical migration
+
+For an explicit owner request to update one AniList entry, use an authenticated
+AniList MCP client when available. If it is **not** exposed in the assistant's
+runtime but GitHub is accessible, follow the agent-neutral
+[`anilist-github-actions-write` skill](.agents/skills/anilist-github-actions-write/SKILL.md)
+for the verified GitHub Actions fallback. It describes scoped secret use,
+account/media/pre-state checks, idempotent mutation, read-back, run verification
+and disposal of one-off workflow files.
+
+The 2026-10-09 case succeeded using run
+[37904874917](https://github.com/delirious-yan/anilist-mcp-server/actions/runs/37904874917)
+and the one-off workflow was deleted afterward. This is **not** a current
+permanent workflow and does not promise secret or Actions access in other AI
+environments. Do **not** rerun either AniDB migration workflow for a new
+completion; those workflows concern historical bulk migration only.
+
 ## Purpose
 
 Preserve the current migration plan and verified findings so this project can be resumed later without re-discovery.
