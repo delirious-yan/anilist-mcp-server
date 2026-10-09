@@ -9,6 +9,9 @@
 
 ## Future single-title AniList updates — independent of historical migration
 
+This public repo's local skill remains sufficient without private repository access. Owner-trusted agents who already have `mind-self` access can additionally use its shared [`github-actions-execution` skill](https://github.com/delirious-yan/mind-self/blob/main/skills/github-actions-execution/SKILL.md) for project-neutral execution constraints, while this repo remains authoritative for the AniList operation itself.
+
+
 For an explicit owner request to update one AniList entry, use an authenticated
 AniList MCP client when available. If it is **not** exposed in the assistant's
 runtime but GitHub is accessible, follow the agent-neutral
