@@ -1,0 +1,131 @@
+# Single-purpose, owner-authorized AniList change for Dungeon Meshi S1.
+# This workflow contains no token, is path-filtered to this exact file and is removed after verified execution.
+name: Complete Dungeon Meshi on AniList
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/complete-dungeon-meshi-20261015.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: anilist-dungeon-meshi-20261015
+  cancel-in-progress: false
+
+jobs:
+  complete:
+    if: github.repository == 'delirious-yan/anilist-mcp-server' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
+    steps:
+      - name: Verify account and media, update completion, and read back
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const token = process.env.ANILIST_ACCESS_TOKEN;
+          if (!token) {
+            throw new Error('Missing ANILIST_ACCESS_TOKEN secret; no account update was attempted.');
+          }
+          let lastRequestAt = 0;
+          async function graphql(query, variables = {}) {
+            const elapsed = Date.now() - lastRequestAt;
+            if (elapsed < 2200) await new Promise(resolve => setTimeout(resolve, 2200 - elapsed));
+            lastRequestAt = Date.now();
+            const response = await fetch('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + token,
+              },
+              body: JSON.stringify({ query, variables }),
+              signal: AbortSignal.timeout(20000),
+            });
+            const result = await response.json();
+            if (!response.ok || result.errors?.length || !result.data) {
+              throw new Error('AniList request failed (' + response.status + '): ' +
+                (result.errors?.map(e => e.message).join('; ') || 'invalid API response'));
+            }
+            return result.data;
+          }
+
+          const user = (await graphql('query { Viewer { id name } }')).Viewer;
+          if (!user?.id || user.name?.toLowerCase() !== 'luciedmeo') {
+            throw new Error('Authenticated account mismatch. No changes made.');
+          }
+
+          const mediaId = 153518;
+          const query = [
+            'query ($id: Int!) {',
+            ' Media(id: $id, type: ANIME) {',
+            '  id type format seasonYear episodes title { romaji english }',
+            '  mediaListEntry {',
+            '   id status progress score(format: POINT_10_DECIMAL) notes repeat priority private',
+            '   hiddenFromStatusLists startedAt { year month day } completedAt { year month day }',
+            '   customLists(asArray: true) advancedScores',
+            '  }',
+            ' }',
+            '}',
+          ].join(' ');
+          async function read() {
+            const m = (await graphql(query, { id: mediaId })).Media;
+            if (m?.id !== mediaId || m?.type !== 'ANIME' || m?.format !== 'TV' ||
+                m.episodes !== 24 || m.seasonYear !== 2024 ||
+                m.title?.romaji?.toLowerCase() !== 'dungeon meshi' ||
+                m.title?.english?.toLowerCase() !== 'delicious in dungeon') {
+              throw new Error('Target media identity validation failed; no update authorized.');
+            }
+            return m;
+          }
+          const beforeMedia = await read();
+          const before = beforeMedia.mediaListEntry;
+          if (before?.status === 'REPEATING') {
+            throw new Error('Current status REPEATING: refusing to overwrite rewatch progress.');
+          }
+          if ((before?.progress ?? 0) > 24) {
+            throw new Error('Unexpected episode progress over 24: refusing stale/conflicting update.');
+          }
+          if (before?.status !== 'COMPLETED' || before?.progress !== 24) {
+            const mutation = [
+              'mutation ($mediaId: Int!, $status: MediaListStatus!, $progress: Int!) {',
+              ' SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress) {',
+              '  id mediaId status progress',
+              ' }',
+              '}',
+            ].join(' ');
+            const written = (await graphql(mutation,
+              { mediaId, status: 'COMPLETED', progress: 24 })).SaveMediaListEntry;
+            if (written?.mediaId !== mediaId || written.status !== 'COMPLETED' ||
+                written.progress !== 24) {
+              throw new Error('Unexpected mutation response: authenticated read-back required.');
+            }
+            console.log('Submitted one-entry completion/progress update.');
+          } else {
+            console.log('Already COMPLETED 24/24; no mutation needed.');
+          }
+          const after = (await read()).mediaListEntry;
+          if (!after || after.status !== 'COMPLETED' || after.progress !== 24) {
+            throw new Error('Authenticated read-back failed to verify COMPLETED 24/24.');
+          }
+          if (before) {
+            const stableFields = [
+              'id', 'score', 'notes', 'repeat', 'priority', 'private',
+              'hiddenFromStatusLists', 'customLists', 'advancedScores',
+            ];
+            for (const field of stableFields) {
+              if (JSON.stringify(before[field]) !== JSON.stringify(after[field])) {
+                throw new Error('Read-back found an unexpected change in ' + field + '.');
+              }
+            }
+            for (const field of ['startedAt', 'completedAt']) {
+              if (before[field] && JSON.stringify(before[field]) !== JSON.stringify(after[field])) {
+                throw new Error('Previously set date unexpectedly changed: ' + field + '.');
+              }
+            }
+          }
+          console.log('VERIFIED: Luciedmeo, Dungeon Meshi (2024) AniList 153518, COMPLETED 24/24. Unrelated user fields preserved.');
+          NODE
