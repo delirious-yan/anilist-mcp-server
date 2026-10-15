@@ -1,0 +1,125 @@
+# Single-purpose, owner-authorized AniList change for 86 Eighty-Six (both cours).
+# This workflow contains no token, is path-filtered to this exact file and is removed after verified execution.
+name: Complete 86 Eighty-Six on AniList
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/complete-86-both-cours-20261015.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: anilist-86-both-cours-20261015
+  cancel-in-progress: false
+
+jobs:
+  complete:
+    if: github.repository == 'delirious-yan/anilist-mcp-server' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
+    steps:
+      - name: Verify account and media, update completion, and read back
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const token = process.env.ANILIST_ACCESS_TOKEN;
+          if (!token) {
+            throw new Error('Missing ANILIST_ACCESS_TOKEN secret; no account update was attempted.');
+          }
+          let lastRequestAt = 0;
+          async function graphql(query, variables = {}) {
+            const elapsed = Date.now() - lastRequestAt;
+            if (elapsed < 2200) await new Promise(resolve => setTimeout(resolve, 2200 - elapsed));
+            lastRequestAt = Date.now();
+            const response = await fetch('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + token,
+              },
+              body: JSON.stringify({ query, variables }),
+              signal: AbortSignal.timeout(20000),
+            });
+            const result = await response.json();
+            if (!response.ok || result.errors?.length || !result.data) {
+              throw new Error('AniList request failed (' + response.status + '): ' +
+                (result.errors?.map(e => e.message).join('; ') || 'invalid API response'));
+            }
+            return result.data;
+          }
+
+          const user = (await graphql('query { Viewer { id name } }')).Viewer;
+          if (!user?.id || user.name?.toLowerCase() !== 'luciedmeo') {
+            throw new Error('Authenticated account mismatch. No changes made.');
+          }
+
+          const targets = [
+            { mediaId: 116589, episodes: 11, title: '86: Eighty Six' },
+            { mediaId: 131586, episodes: 12, title: '86: Eighty Six Part 2' },
+          ];
+          const query = [
+            'query ($id: Int!) { Media(id: $id, type: ANIME) {',
+            ' id type format seasonYear episodes title { romaji english }',
+            ' mediaListEntry { id status progress score(format: POINT_10_DECIMAL)',
+            ' notes repeat priority private hiddenFromStatusLists',
+            ' startedAt { year month day } completedAt { year month day }',
+            ' customLists(asArray: true) advancedScores } } }',
+          ].join(' ');
+          async function read(target) {
+            const m = (await graphql(query, { id: target.mediaId })).Media;
+            if (m?.id !== target.mediaId || m.type !== 'ANIME' || m.format !== 'TV' ||
+                m.episodes !== target.episodes || m.seasonYear !== 2021 ||
+                m.title?.romaji?.toLowerCase() !== target.title.toLowerCase()) {
+              throw new Error('Media identity mismatch for ' + target.mediaId);
+            }
+            return m.mediaListEntry;
+          }
+          const states = [];
+          // Preflight BOTH records before any mutation.
+          for (const target of targets) {
+            const before = await read(target);
+            if (before?.status === 'REPEATING' || (before?.progress ?? 0) > target.episodes) {
+              throw new Error('Conflicting list state for ' + target.mediaId);
+            }
+            states.push({ target, before });
+          }
+          const mutation = [
+            'mutation ($id: Int!, $progress: Int!) {',
+            ' SaveMediaListEntry(mediaId: $id, status: COMPLETED, progress: $progress)',
+            ' { id mediaId status progress } }',
+          ].join(' ');
+          for (const { target, before } of states) {
+            if (before?.status !== 'COMPLETED' || before?.progress !== target.episodes) {
+              const written = (await graphql(mutation,
+                { id: target.mediaId, progress: target.episodes })).SaveMediaListEntry;
+              if (written?.mediaId !== target.mediaId || written.status !== 'COMPLETED' ||
+                  written.progress !== target.episodes) {
+                throw new Error('Unexpected mutation result for ' + target.mediaId);
+              }
+            }
+            const after = await read(target);
+            if (!after || after.status !== 'COMPLETED' || after.progress !== target.episodes) {
+              throw new Error('Authenticated readback failed for ' + target.mediaId);
+            }
+            if (before) {
+              for (const field of ['id','score','notes','repeat','priority','private',
+                                   'hiddenFromStatusLists','customLists','advancedScores']) {
+                if (JSON.stringify(before[field]) !== JSON.stringify(after[field])) {
+                  throw new Error('Unexpected change in ' + field + ' for ' + target.mediaId);
+                }
+              }
+              for (const field of ['startedAt','completedAt']) {
+                if (before[field] && JSON.stringify(before[field]) !== JSON.stringify(after[field])) {
+                  throw new Error('Unexpected date change for ' + target.mediaId);
+                }
+              }
+            }
+            console.log('VERIFIED: Luciedmeo, 86 media ' + target.mediaId +
+                        ', COMPLETED ' + target.episodes + '/' + target.episodes);
+          }
+          NODE
