@@ -1,4 +1,4 @@
-name: AniList single-entry sync
+name: AniList single or batch sync
 on:
   push:
     branches: [main]
@@ -7,16 +7,16 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: anilist-single-entry
+  group: anilist-sync
   cancel-in-progress: false
 jobs:
   sync:
     if: github.repository == 'delirious-yan/anilist-mcp-server'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
-      - name: Apply validated request
+      - name: Apply validated single or batch request
         env:
           ANILIST_ACCESS_TOKEN: ${{ secrets.ANILIST_ACCESS_TOKEN }}
         run: node scripts/sync-anilist-request.mjs anilist-requests/current.json
