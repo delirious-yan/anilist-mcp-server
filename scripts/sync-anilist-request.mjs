@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 const token = process.env.ANILIST_ACCESS_TOKEN;
 if (!token) throw Error('AniList token secret unavailable');
-const request = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const input = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const requests = Array.isArray(input) ? input : Array.isArray(input.entries) ? input.entries : [input];
+if (requests.length < 1 || requests.length > 25) throw Error('Request must contain 1 to 25 entries');
+const ids = requests.map(r => r.mediaId);
+if (new Set(ids).size !== ids.length) throw Error('Duplicate media IDs');
+for (const request of requests) {
+
 if (!Number.isSafeInteger(request.mediaId) || request.mediaId < 1 ||
     request.status !== 'COMPLETED' || !Number.isSafeInteger(request.progress) ||
     request.progress < 1 || typeof request.expectedTitle !== 'string' ||
@@ -9,6 +15,7 @@ if (!Number.isSafeInteger(request.mediaId) || request.mediaId < 1 ||
     !Number.isSafeInteger(request.expectedEpisodes) ||
     request.expectedEpisodes !== request.progress) {
   throw Error('Invalid or unsupported single-entry request');
+}
 }
 let last = 0;
 async function graphql(query, variables = {}) {
@@ -35,8 +42,9 @@ const mediaQuery = `query ($id:Int!) { Media(id:$id,type:ANIME) {
     private hiddenFromStatusLists customLists(asArray:true) advancedScores
     startedAt { year month day } completedAt { year month day } }
 } }`;
-async function read() { return (await graphql(mediaQuery, { id: request.mediaId })).Media; }
-const media = await read();
+async function read(request) { return (await graphql(mediaQuery, { id: request.mediaId })).Media; }
+for (const request of requests) {
+const media = await read(request);
 const titles = [media?.title?.romaji, media?.title?.english].filter(Boolean);
 if (media?.id !== request.mediaId || media.type !== 'ANIME' ||
     media.episodes !== request.expectedEpisodes ||
@@ -58,7 +66,7 @@ if (before?.status !== 'COMPLETED' || before?.progress !== request.progress) {
   if (saved?.mediaId !== request.mediaId || saved.status !== 'COMPLETED' ||
       saved.progress !== request.progress) throw Error('Unexpected mutation response');
 }
-const after = (await read()).mediaListEntry;
+const after = (await read(request)).mediaListEntry;
 if (!after || after.status !== 'COMPLETED' || after.progress !== request.progress)
   throw Error('Authenticated readback mismatch');
 if (before) {
@@ -74,3 +82,4 @@ if (before) {
 }
 console.log('VERIFIED account=Luciedmeo mediaId=' + request.mediaId +
   ' status=COMPLETED progress=' + request.progress);
+}
