@@ -1,7 +1,25 @@
 {
-  "mediaId": 199547,
-  "expectedTitle": "MARRIAGETOXIN",
-  "expectedEpisodes": 13,
-  "status": "COMPLETED",
-  "progress": 13
+  "entries": [
+    {
+      "mediaId": 617,
+      "expectedTitle": "Juubee Ninpuuchou",
+      "expectedEpisodes": 1,
+      "status": "COMPLETED",
+      "progress": 1
+    },
+    {
+      "mediaId": 2236,
+      "expectedTitle": "Toki wo Kakeru Shoujo",
+      "expectedEpisodes": 1,
+      "status": "COMPLETED",
+      "progress": 1
+    },
+    {
+      "mediaId": 5681,
+      "expectedTitle": "Summer Wars",
+      "expectedEpisodes": 1,
+      "status": "COMPLETED",
+      "progress": 1
+    }
+  ]
 }
