@@ -12,7 +12,12 @@ permissions:
 
 jobs:
   delete-single-public-log:
-    if: ${{ github.repository == 'delirious-yan/anilist-mcp-server' && github.ref == 'refs/heads/main' && github.event_name == 'push' && github.event.head_commit.message == 'privacy: remove exposed AniList analysis logs once' && github.run_attempt == 1 }}
+    if: >-
+      github.repository == 'delirious-yan/anilist-mcp-server' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      github.event.head_commit.message == 'privacy remove exposed logs approved' &&
+      github.run_attempt == 1
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
