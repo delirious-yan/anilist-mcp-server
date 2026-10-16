@@ -1,0 +1,31 @@
+name: One-time remove completed-list export log
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/one-time-delete-completed-export-20261016.yml
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  delete-export-log:
+    if: >-
+      github.repository == 'delirious-yan/anilist-mcp-server' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      github.event.head_commit.message == 'privacy remove exported AniList list log approved' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Delete only owner-approved completed-list export logs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --method DELETE repos/delirious-yan/anilist-mcp-server/actions/runs/37577958253/logs
+          echo "Requested log deletion only for export run 37577958253"
