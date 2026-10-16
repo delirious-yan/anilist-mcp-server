@@ -9,7 +9,7 @@ description: Safely update one explicitly authorized AniList list entry via GitH
 
 **Shared execution methodology:** An owner-trusted agent already independently authorized to read the private `delirious-yan/mind-self` repository should also load its [`github-actions-execution` shared skill](https://github.com/delirious-yan/mind-self/blob/main/skills/github-actions-execution/SKILL.md) for general workflow selection, authorization, runner isolation, least privilege, run evidence and cleanup. **Do not request private mind-self access for an external contributor.** This local guide must remain sufficient for a model with only this public repo.
 
-GitHub repository access **alone** cannot mutate AniList. A carefully scoped workflow can use a *separately configured* `ANILIST_ACCESS_TOKEN` GitHub Actions secret. Its existence/validity must be established by safe execution; do not reveal, print, copy or commit its value. A previous successful run proves neither current access nor new write authorization.
+GitHub repository access **alone** cannot mutate AniList. A carefully scoped workflow can use a _separately configured_ `ANILIST_ACCESS_TOKEN` GitHub Actions secret. Its existence/validity must be established by safe execution; do not reveal, print, copy or commit its value. A previous successful run proves neither current access nor new write authorization.
 
 ## Preconditions specific to AniList
 
@@ -17,7 +17,7 @@ GitHub repository access **alone** cannot mutate AniList. A carefully scoped wor
 2. Verify the owner's **particular requested effect** (e.g., mark Season 1 complete). Confirm the intended account from authorized context. A Chaos tier, liking a show or completing a title **never** authorizes a guessed numerical AniList score.
 3. Resolve the exact AniList **media ID** using AniList reads; cross-check anime type, alternate titles, season/format/year and episode total. Do not guess by a similar title, sequel, film or remake. Stop on ambiguity.
 4. Read the existing list entry before writing. Capture its status, progress, score, notes, repeat count and all other potentially affected fields, including dates, privacy/custom-list state where the API exposes them. Completion/progress changes must preserve unrelated fields and any newer evidence.
-5. A write to the **actual account** is not a mutation *test*. Tests are governed by `.agents/skills/mutation-test-safety/SKILL.md` and must capture, revert, then verify the revert. An authorized owner list update is supposed to persist.
+5. A write to the **actual account** is not a mutation _test_. Tests are governed by `.agents/skills/mutation-test-safety/SKILL.md` and must capture, revert, then verify the revert. An authorized owner list update is supposed to persist.
 
 ## Narrow GitHub Actions execution
 
@@ -39,7 +39,7 @@ GitHub repository access **alone** cannot mutate AniList. A carefully scoped wor
 
 ## Verified historical example — not a standing trigger
 
-On **2026-10-09**, the owner explicitly requested marking *The Wrong Way to Use Healing Magic* Season 1 complete (13 episodes):
+On **2026-10-09**, the owner explicitly requested marking _The Wrong Way to Use Healing Magic_ Season 1 complete (13 episodes):
 
 - [One-off workflow commit `b134f7b`](https://github.com/delirious-yan/anilist-mcp-server/commit/b134f7b5bb1a5193637dcec9d8bd888b63d0eeae) — historical example only, not a generic script to replay verbatim.
 - [GitHub Actions run 37904874917](https://github.com/delirious-yan/anilist-mcp-server/actions/runs/37904874917) succeeded: authenticated target identity confirmed, mutation submitted, `COMPLETED` and `13/13` independently read back.
