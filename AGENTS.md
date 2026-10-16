@@ -1,4 +1,5 @@
 <!-- current-mission-workflow -->
+
 ## Owner-current work method — one mission, one evidenced result (2026-10-12)
 
 This **supersedes** previous automatic per-session private-memory sync, phase/model permission pauses, mandatory per-step handoffs and documentation-as-completion. For each directly authorized task, carry one coherent outcome through actual work, appropriate tests, batched fixes and proportionate independent review. Code/product delivery requires executable evidence; writing and review reports are not substitutes. Update **one current checkpoint only for a completed outcome or material blocker**, then continue future sessions under still-valid authorization without "go ahead" loops.
@@ -93,7 +94,6 @@ naturally omits absent optional arguments, no dummy placeholder values needed.
 For the current reusable single/batch GitHub Actions method, verification evidence, and connector write-block handling, follow [docs/anilist-sync-workflow.md](docs/anilist-sync-workflow.md). Prefer this existing request-file workflow over creating one-off workflows. The historical one-time workflow cleanup advice below applies only to genuinely temporary workflows, not the maintained reusable workflow.
 
 The AniList-specific skill is self-contained for contributors with access only to this repository. An **already owner-trusted** agent with separate legitimate private `mind-self` access may also read [`skills/github-actions-execution/SKILL.md`](https://github.com/delirious-yan/mind-self/blob/main/skills/github-actions-execution/SKILL.md) for general GitHub execution boundaries; never request private access as a prerequisite to public-repo work.
-
 
 When an owner explicitly requests a single AniList watch-list change and the AI
 session has GitHub access but no authenticated AniList MCP connection, read
