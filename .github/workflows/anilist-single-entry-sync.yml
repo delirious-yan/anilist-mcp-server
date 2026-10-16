@@ -2,7 +2,7 @@ name: AniList single or batch sync
 on:
   push:
     branches: [main]
-    paths: ['anilist-requests/current.json']
+    paths: ["anilist-requests/current.json"]
   workflow_dispatch:
 permissions:
   contents: read
