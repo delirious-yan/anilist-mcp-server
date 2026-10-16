@@ -1,0 +1,7 @@
+# Owner review requests. Enforce with a GitHub main-branch ruleset.
+# GitHub cannot accept approval of the author's own PR; configure
+# solo-maintainer-safe bypass or another trusted reviewer before enforcement.
+* @delirious-yan
+/.github/ @delirious-yan
+/src/ @delirious-yan
+/scripts/ @delirious-yan
