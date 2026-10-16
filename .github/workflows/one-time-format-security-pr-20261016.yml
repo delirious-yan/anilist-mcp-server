@@ -39,10 +39,10 @@ jobs:
             'scripts/sync-anilist-request.mjs',
           ];
           for (const path of paths) {
-            const content = readFileSync(path, 'utf8');
-            for (let offset = 0; offset < content.length; offset += 512) {
-              console.log('FORMATTED_PUBLIC_SOURCE:' + JSON.stringify({
-                path, offset, total: content.length, chunk: content.slice(offset, offset + 512),
+            const data = readFileSync(path);
+            for (let offset = 0; offset < data.length; offset += 384) {
+              console.log('FORMATTED_HEX_SOURCE:' + JSON.stringify({
+                path, offset, total: data.length, chunk: data.subarray(offset, offset + 384).toString('hex'),
               }));
             }
           }
