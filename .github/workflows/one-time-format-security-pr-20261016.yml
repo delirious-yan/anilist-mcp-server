@@ -7,7 +7,7 @@ on:
       - .github/workflows/one-time-format-security-pr-20261016.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   format-reviewed-branch:
@@ -15,28 +15,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Checkout exact reviewed branch
+      - name: Checkout trusted review branch without persisting token
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: security/ani-public-hygiene-20261016
-          persist-credentials: true
+          persist-credentials: false
       - name: Set up Node.js 24
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: 24
           cache: npm
-      - name: Install exact locked dependencies
-        run: npm ci
-      - name: Format known four files only
+      - run: npm ci
+      - name: Format the four already-public files
         run: npx prettier --write .agents/skills/anilist-github-actions-write/SKILL.md .github/workflows/anilist-single-entry-sync.yml AGENTS.md scripts/sync-anilist-request.mjs
-      - name: Commit formatting only to the temporary PR branch
+      - name: Print verified formatted source chunks (public files only)
         run: |
-          git add -- .agents/skills/anilist-github-actions-write/SKILL.md .github/workflows/anilist-single-entry-sync.yml AGENTS.md scripts/sync-anilist-request.mjs
-          if git diff --cached --quiet; then
-            echo "No formatting changes needed."
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'style: apply pinned Prettier to previously failing files'
-          git push origin HEAD:refs/heads/security/ani-public-hygiene-20261016
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const paths = [
+            '.agents/skills/anilist-github-actions-write/SKILL.md',
+            '.github/workflows/anilist-single-entry-sync.yml',
+            'AGENTS.md',
+            'scripts/sync-anilist-request.mjs',
+          ];
+          for (const path of paths) {
+            const content = readFileSync(path, 'utf8');
+            for (let offset = 0; offset < content.length; offset += 512) {
+              console.log('FORMATTED_PUBLIC_SOURCE:' + JSON.stringify({
+                path, offset, total: content.length, chunk: content.slice(offset, offset + 512),
+              }));
+            }
+          }
+          NODE
