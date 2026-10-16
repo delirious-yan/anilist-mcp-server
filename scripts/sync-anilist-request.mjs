@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
+/** @typedef {{mediaId: number, expectedTitle: string, expectedEpisodes: number, status: string, progress: number}} AniRequest */
 const token = process.env.ANILIST_ACCESS_TOKEN;
 if (!token) throw Error('AniList token secret unavailable');
 const input = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+/** @type {AniRequest[]} */
 const requests = Array.isArray(input) ? input : Array.isArray(input.entries) ? input.entries : [input];
 if (requests.length < 1 || requests.length > 25) throw Error('Request must contain 1 to 25 entries');
 const ids = requests.map(r => r.mediaId);
@@ -18,6 +20,10 @@ if (!Number.isSafeInteger(request.mediaId) || request.mediaId < 1 ||
 }
 }
 let last = 0;
+/** @param {string} query
+ *  @param {Record<string, unknown>} [variables]
+ *  @returns {Promise<any>} AniList GraphQL response data, validated at each call site.
+ */
 async function graphql(query, variables = {}) {
   const delay = Math.max(0, 2200 - (Date.now() - last));
   if (delay) await new Promise(resolve => setTimeout(resolve, delay));
@@ -28,7 +34,8 @@ async function graphql(query, variables = {}) {
     body: JSON.stringify({ query, variables }),
     signal: AbortSignal.timeout(20000)
   });
-  const result = await response.json();
+  /** @type {{ errors?: Array<{ message: string }>, data?: any }} */
+  const result = /** @type {any} */ (await response.json());
   if (!response.ok || result.errors?.length || !result.data) {
     throw Error('AniList API error: ' + (result.errors?.map(e => e.message).join('; ') || response.status));
   }
@@ -42,6 +49,7 @@ const mediaQuery = `query ($id:Int!) { Media(id:$id,type:ANIME) {
     private hiddenFromStatusLists customLists(asArray:true) advancedScores
     startedAt { year month day } completedAt { year month day } }
 } }`;
+/** @param {AniRequest} request */
 async function read(request) { return (await graphql(mediaQuery, { id: request.mediaId })).Media; }
 for (const request of requests) {
 const media = await read(request);
