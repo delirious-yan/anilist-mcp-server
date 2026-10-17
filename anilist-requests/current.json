@@ -1,32 +1,11 @@
 {
   "entries": [
     {
-      "mediaId": 107693,
-      "expectedTitle": "Mairimashita! Iruma-kun",
-      "expectedEpisodes": 23,
-      "status": "COMPLETED",
-      "progress": 23
-    },
-    {
-      "mediaId": 116338,
-      "expectedTitle": "Mairimashita! Iruma-kun 2",
+      "mediaId": 185116,
+      "expectedTitle": "Gnosia",
       "expectedEpisodes": 21,
       "status": "COMPLETED",
       "progress": 21
-    },
-    {
-      "mediaId": 139092,
-      "expectedTitle": "Mairimashita! Iruma-kun 3",
-      "expectedEpisodes": 21,
-      "status": "COMPLETED",
-      "progress": 21
-    },
-    {
-      "mediaId": 184492,
-      "expectedTitle": "Mairimashita! Iruma-kun 4",
-      "expectedEpisodes": 24,
-      "status": "COMPLETED",
-      "progress": 24
     }
   ]
 }
