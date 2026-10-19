@@ -264,3 +264,11 @@ carcass (`src/lib/` + build tooling, tests infra, CI) and a thin domain layer
 bootstrapped from the **`mcp-server-template`** repository. Extract `lib/`
 into a shared npm package only once cross-server duplication actually hurts
 (YAGNI) — not before.
+
+## AniList completion workflow states
+
+For authorized list updates, follow [the request-to-readback procedure](docs/anilist-sync-workflow.md).
+Verify exact media identities before merge, use a request-only PR, satisfy current checks and
+independent review, then inspect the matching main sync run and authenticated item readbacks.
+A PR is not a sync. Work mode is not a prerequisite. Never bypass branch protection or convert
+private preference tiers into account scores. Regression tests use synthetic data only.

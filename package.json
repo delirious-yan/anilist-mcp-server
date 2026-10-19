@@ -44,8 +44,8 @@
     "build": "npm run typecheck && tsup",
     "prepublishOnly": "npm run build",
     "build:tests": "node scripts/build-tests.mjs",
-    "test": "npm run build:tests && node scripts/run-tests.mjs",
-    "test:coverage": "npm run build:tests && node scripts/run-tests.mjs --coverage",
+    "test": "npm run build:tests && node scripts/run-tests.mjs && npm run test:sync",
+    "test:coverage": "npm run build:tests && node scripts/run-tests.mjs --coverage && npm run test:sync",
     "preversion": "node scripts/preversion-check.mjs",
     "version": "node scripts/sync-version.mjs && git add src/version.ts manifest.json server.json CHANGELOG.md",
     "lint": "eslint . && npm run typecheck:scripts",
@@ -55,7 +55,8 @@
     "start": "node dist/index.js",
     "inspector": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",
     "anidb:dry-run": "npm run build && node dist/anidb-migration.js",
-    "anidb:write-plan": "npm run build && node dist/anidb-migration-write.js"
+    "anidb:write-plan": "npm run build && node dist/anidb-migration-write.js",
+    "test:sync": "node --test scripts/sync-anilist-request.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.1.0",

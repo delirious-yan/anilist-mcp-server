@@ -19,6 +19,16 @@ GitHub repository access **alone** cannot mutate AniList. A carefully scoped wor
 4. Read the existing list entry before writing. Capture its status, progress, score, notes, repeat count and all other potentially affected fields, including dates, privacy/custom-list state where the API exposes them. Completion/progress changes must preserve unrelated fields and any newer evidence.
 5. A write to the **actual account** is not a mutation _test_. Tests are governed by `.agents/skills/mutation-test-safety/SKILL.md` and must capture, revert, then verify the revert. An authorized owner list update is supposed to persist.
 
+## Protected request workflow
+
+The maintained batch-capable request workflow is documented in
+[request-to-readback states](../../../docs/anilist-sync-workflow.md). Work mode is not a
+prerequisite. Independently verify media identities, then use a request-only feature branch
+and PR. Require current protected CI, independent approval and resolved conversations before
+merging. Do not push requests directly to main, self-approve or bypass branch protection.
+The merge push triggers the secret-backed sync; inspect that exact run and every item.
+A PR, green ordinary CI or merge alone does not establish a live AniList update.
+
 ## Narrow GitHub Actions execution
 
 - Prefer a pre-existing, reviewed **single-entry** workflow if one genuinely exists. Never rerun `.github/workflows/anidb-completed-only.yml` or `anidb-dry-run.yml` for one new title: those are historical AniDB migration tools.
