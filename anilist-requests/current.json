@@ -1,11 +1,10 @@
 {
   "entries": [
     {
-      "mediaId": 185116,
-      "expectedTitle": "Gnosia",
-      "expectedEpisodes": 21,
-      "status": "COMPLETED",
-      "progress": 21
+      "mediaId": 138788,
+      "expectedTitle": "Under Ninja",
+      "expectedEpisodes": 12,
+      "score": 7
     }
   ]
 }
