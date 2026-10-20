@@ -13,6 +13,13 @@
       "expectedEpisodes": 13,
       "status": "COMPLETED",
       "progress": 13
+    },
+    {
+      "mediaId": 138788,
+      "expectedTitle": "Under Ninja",
+      "expectedEpisodes": 12,
+      "status": "COMPLETED",
+      "progress": 12
     }
   ]
 }
