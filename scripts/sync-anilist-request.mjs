@@ -1,3 +1,4 @@
+// @ts-check
 import { readFileSync } from "node:fs";
 /** @typedef {{mediaId: number, expectedTitle: string, expectedEpisodes: number, status: string, progress: number}} AniRequest */
 const token = process.env.ANILIST_ACCESS_TOKEN;
@@ -80,7 +81,8 @@ for (const request of requests) {
   const before = media.mediaListEntry;
   if (before?.status === "REPEATING" || (before?.progress ?? 0) > request.progress)
     throw Error("Conflicting existing AniList state");
-  if (before?.status !== "COMPLETED" || before?.progress !== request.progress) {
+  const changed = before?.status !== "COMPLETED" || before?.progress !== request.progress;
+  if (changed) {
     const mutation = `mutation ($id:Int!,$progress:Int!) {
     SaveMediaListEntry(mediaId:$id,status:COMPLETED,progress:$progress) {
       id mediaId status progress
@@ -126,6 +128,8 @@ for (const request of requests) {
     "VERIFIED account=Luciedmeo mediaId=" +
       request.mediaId +
       " status=COMPLETED progress=" +
-      request.progress,
+      request.progress +
+      " outcome=" +
+      (changed ? "APPLIED" : "ALREADY_CORRECT"),
   );
 }
