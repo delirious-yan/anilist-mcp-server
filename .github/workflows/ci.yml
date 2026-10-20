@@ -38,13 +38,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run lint
-      - name: Check formatting and show repair diff on failure
-        run: |
-          if ! npm run format:check; then
-            npm run format
-            git diff --exit-code
-            exit 1
-          fi
+      - run: npm run format:check
       - name: Coverage gate (lines >= 80%)
         run: npm run test:coverage
       - name: Validate .mcpb manifest

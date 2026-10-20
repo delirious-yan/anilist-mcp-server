@@ -5,18 +5,18 @@ Work mode is not a prerequisite for GitHub operations. A PR is not an account up
 
 ## Required state transitions
 
-| State | Evidence required before advancing |
-| --- | --- |
-| Requested | Owner-authorized account, exact seasons, status and progress; no guessed score |
-| Identity verified | Independent AniList ID, romaji/English title, anime format/year and episode count |
-| PR opened | Request-only branch and PR into protected main; exact head SHA recorded |
-| Checks passed | Current head has all required Node 20/22/24 and quality checks |
-| Review approved | Required independent approval and resolved conversations; no bypass or self-approval |
-| Merged | GitHub confirms merge into main; record merge SHA |
-| Execution pending | Matching main-push sync run identified; queued/running is not success |
-| Applied and verified | Every requested ID has authenticated account readback and preservation checks |
-| Already correct | Authenticated pre-state matched; no mutation; fresh readback still passed |
-| Blocked / failed / unverified | State exactly which gate or item failed; do not claim the batch synced |
+| State                         | Evidence required before advancing                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------ |
+| Requested                     | Owner-authorized account, exact seasons, status and progress; no guessed score       |
+| Identity verified             | Independent AniList ID, romaji/English title, anime format/year and episode count    |
+| PR opened                     | Request-only branch and PR into protected main; exact head SHA recorded              |
+| Checks passed                 | Current head has all required Node 20/22/24 and quality checks                       |
+| Review approved               | Required independent approval and resolved conversations; no bypass or self-approval |
+| Merged                        | GitHub confirms merge into main; record merge SHA                                    |
+| Execution pending             | Matching main-push sync run identified; queued/running is not success                |
+| Applied and verified          | Every requested ID has authenticated account readback and preservation checks        |
+| Already correct               | Authenticated pre-state matched; no mutation; fresh readback still passed            |
+| Blocked / failed / unverified | State exactly which gate or item failed; do not claim the batch synced               |
 
 Branch rules and check names must be inspected afresh. Passing ordinary CI never proves
 AniList execution. A queued check has no test result; a missing approving review remains a gate.

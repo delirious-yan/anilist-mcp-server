@@ -167,12 +167,7 @@ test("repeating and regressive progress are conflicts", () => {
 });
 
 test("mutation echo is insufficient when independent readback disagrees", () => {
-  const result = run(request, [
-    viewer,
-    media(null),
-    saved,
-    media({ ...completed, progress: 12 }),
-  ]);
+  const result = run(request, [viewer, media(null), saved, media({ ...completed, progress: 12 })]);
   assert.notEqual(result.status, 0);
   assert.equal(result.writes.length, 1);
   assert.doesNotMatch(result.stdout, /VERIFIED/);
@@ -197,10 +192,13 @@ test("API errors stop processing without claiming verification", () => {
 test("later batch failure preserves earlier verified evidence without batch success", () => {
   const second = { ...request, mediaId: 999, expectedTitle: "Second Synthetic Anime" };
   // Defensive missing-Media fixture; not a claim this live response was observed.
-  const result = run(
-    { entries: [request, second] },
-    [viewer, media(null), saved, media(completed), { data: { Media: null } }],
-  );
+  const result = run({ entries: [request, second] }, [
+    viewer,
+    media(null),
+    saved,
+    media(completed),
+    { data: { Media: null } },
+  ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stdout, /VERIFIED account=Luciedmeo mediaId=123/);
   assert.doesNotMatch(result.stdout, /mediaId=999/);
