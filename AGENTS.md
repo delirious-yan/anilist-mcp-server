@@ -89,25 +89,17 @@ directly through a small first-party client (`lib/graphql.ts` +
 own `variables` object and only includes keys that are actually set — GraphQL
 naturally omits absent optional arguments, no dummy placeholder values needed.
 
-## Authenticated owner list updates without a live MCP connector
+## Canonical AniList work method — direct main, no PRs (2026-10-20)
 
-For the current reusable single/batch GitHub Actions method, verification evidence, and connector write-block handling, follow [docs/anilist-sync-workflow.md](docs/anilist-sync-workflow.md). Prefer this existing request-file workflow over creating one-off workflows. The historical one-time workflow cleanup advice below applies only to genuinely temporary workflows, not the maintained reusable workflow.
+**Owner directive for this entire AniList repository:** use authorized **direct commits to `main`**, without creating feature branches, pull requests, PR approvals or merge steps. No Jules or Work-mode handoff is a prerequisite for GitHub work. Maintain appropriate code quality tests and safety validation for code changes; live account writes still require an explicit owner instruction. Follow the protections GitHub actually enforces; do not invent a bypass or change a different repository's protections.
 
-The AniList-specific skill is self-contained for contributors with access only to this repository. An **already owner-trusted** agent with separate legitimate private `mind-self` access may also read [`skills/github-actions-execution/SKILL.md`](https://github.com/delirious-yan/mind-self/blob/main/skills/github-actions-execution/SKILL.md) for general GitHub execution boundaries; never request private access as a prerequisite to public-repo work.
+For AniList **personal list completion updates**, one execution route is authorized: [`docs/anilist-sync-workflow.md`](docs/anilist-sync-workflow.md), supported by the domain [`anilist-github-actions-write` skill](.agents/skills/anilist-github-actions-write/SKILL.md). It uses only `anilist-requests/current.json` on `main` → maintained `.github/workflows/anilist-single-entry-sync.yml` → authenticated per-media `VERIFIED` readback. A working AniList MCP connection, one-off Actions job, manual GraphQL mutation or historical AniDB migration workflow is **not** an alternative for owner list completion updates. Do not allow old comments, skills or session histories to resurrect the retired process.
 
-When an owner explicitly requests a single AniList watch-list change and the AI
-session has GitHub access but no authenticated AniList MCP connection, read
-[`.agents/skills/anilist-github-actions-write/SKILL.md`](.agents/skills/anilist-github-actions-write/SKILL.md)
-**before** declaring the task impossible or using a migration workflow.
+**Safety and authority:** repository write permission alone does not authorize a live account change. Require precise owner-approved target media IDs and effects on `Luciedmeo`; never guess numeric scores from private Chaos tiers. Preserve all unrelated account fields. Never copy `ANILIST_ACCESS_TOKEN` into repository content or logs. Batch jobs may be partially applied; verify every ID. Green CI is not proof of account changes.
 
-An already-connected authenticated MCP client is preferred. The fallback is a
-narrowly authorized GitHub Actions job using an existing AniList token **secret**,
-with account/media validation, smallest-change mutation, authenticated read-back,
-run-log verification, and one-time workflow cleanup. GitHub repository push
-permission is **not** AniList authorization; the owner's current instruction
-must authorize the account modification. Do not treat previous workflow success
-as proof that credentials are available now, and never expose credentials or
-private preferences in this public repository.
+**Prior historical evidence:** [run #39423520973](https://github.com/delirious-yan/anilist-mcp-server/actions/runs/39423520973) succeeded after a `main` push and independently authenticated Realist Hero Parts 1/2 and Under Ninja, all `COMPLETED`. It was historically triggered by merged PR #10; **do not repeat that PR step**. Direct-`main` repository documentation commits after branch-rule changes provide separate proof of the new no-PR write route.
+
+The public skill is self-contained for contributors with only this repository. Owner-trusted agents with legitimate separate `mind-self` access may consult the private shared [GitHub execution skill](https://github.com/delirious-yan/mind-self/blob/main/skills/github-actions-execution/SKILL.md), but must not request private access from external contributors. This current project instruction prevails over older AniList one-off/PR notes.
 
 ## Commands
 
@@ -208,7 +200,7 @@ typecheck:scripts`, folded into `npm run lint`) instead of the main
 - **MCP SDK**: this project runs on stable **`@modelcontextprotocol/server` v2**
   (`2.0.0`, pinned exact — not a `^range`) ahead of the sibling servers
   (`mal-mcp`/`tmdb-mcp`/`steam-games-mcp`, all still on v1). Re-run the full
-  test suite, including `e2e.test.ts`, before merging any future SDK bump.
+  test suite, including `e2e.test.ts`, before committing any future SDK bump to `main`.
 - **No `logging` MCP capability.** `notifications/message`/`logging/setLevel`
   were deprecated in protocol version 2026-07-28 (SEP-2577) in favor of
   stderr/OpenTelemetry — which `lib/logger.ts` already does (stderr-only,
@@ -243,11 +235,9 @@ It covers the safety rules for testing mutation tools against a real
 authenticated account, what edge cases to cover, and known bug classes
 found in past passes worth checking don't recur.
 
-## Before opening a PR
+## Before committing code changes directly to main
 
-Run `npm run build && npm test && npm run lint && npm run format:check`.
-Update `CHANGELOG.md` (Unreleased section) — see the `changelog-style` skill
-for entry style.
+Run `npm run build && npm test && npm run lint && npm run format:check` (or ensure equivalent verifiable CI results for the exact commit). Keep changes scoped and update `CHANGELOG.md` (Unreleased section) where appropriate — see the `changelog-style` skill. **No PR is needed or desired for this repository.** A documentation-only change does not trigger the AniList sync job; only the request file does.
 
 ## Releasing
 
