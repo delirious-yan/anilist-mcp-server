@@ -1,11 +1,25 @@
 {
   "entries": [
     {
-      "mediaId": 185116,
-      "expectedTitle": "Gnosia",
-      "expectedEpisodes": 21,
+      "mediaId": 117612,
+      "expectedTitle": "Genjitsu Shugi Yuusha no Oukoku Saikenki",
+      "expectedEpisodes": 13,
       "status": "COMPLETED",
-      "progress": 21
+      "progress": 13
+    },
+    {
+      "mediaId": 139648,
+      "expectedTitle": "Genjitsu Shugi Yuusha no Oukoku Saikenki Part 2",
+      "expectedEpisodes": 13,
+      "status": "COMPLETED",
+      "progress": 13
+    },
+    {
+      "mediaId": 138788,
+      "expectedTitle": "Under Ninja",
+      "expectedEpisodes": 12,
+      "status": "COMPLETED",
+      "progress": 12
     }
   ]
 }
