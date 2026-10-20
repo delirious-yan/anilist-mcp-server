@@ -24,4 +24,5 @@ async function fixtureFetch(input, init) {
   const next = fixture.responses.shift();
   return new globalThis.Response(JSON.stringify(next.body), { status: next.status ?? 200 });
 }
-globalThis.fetch = fixtureFetch;
+// Install at runtime without redeclaring the project's global fetch type.
+Object.defineProperty(globalThis, "fetch", { value: fixtureFetch, configurable: true });

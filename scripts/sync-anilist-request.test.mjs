@@ -199,10 +199,11 @@ test("later batch failure preserves earlier verified evidence without batch succ
   // Defensive missing-Media fixture; not a claim this live response was observed.
   const result = run(
     { entries: [request, second] },
-    [viewer, media(completed), media(completed), { data: { Media: null } }],
+    [viewer, media(null), saved, media(completed), { data: { Media: null } }],
   );
   assert.notEqual(result.status, 0);
   assert.match(result.stdout, /VERIFIED account=Luciedmeo mediaId=123/);
   assert.doesNotMatch(result.stdout, /mediaId=999/);
-  assert.equal(result.writes.length, 0);
+  assert.match(result.stdout, /outcome=APPLIED/);
+  assert.equal(result.writes.length, 1);
 });
