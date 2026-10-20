@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-/** @typedef {{mediaId: number, expectedTitle: string, expectedEpisodes: number, status: string, progress: number}} AniRequest */
+/** @typedef {{mediaId: number, expectedTitle: string, expectedEpisodes: number, status?: string, progress?: number, score?: number}} AniRequest */
 const token = process.env.ANILIST_ACCESS_TOKEN;
 if (!token) throw Error("AniList token secret unavailable");
 const input = JSON.parse(readFileSync(process.argv[2], "utf8"));
@@ -31,7 +31,7 @@ for (const request of requests) {
     ? typeof request.score === "number" &&
       request.score > 0 &&
       request.score <= 10 &&
-      Number.isSafeInteger(request.score * 10)
+      Number.isSafeInteger(Number(request.score) * 10)
     : request.status === "COMPLETED" &&
       Number.isSafeInteger(request.progress) &&
       request.progress === request.expectedEpisodes;
@@ -93,7 +93,7 @@ for (const request of requests) {
     // Scoring an absent item would implicitly create a CURRENT list entry.
     // That is a distinct owner decision, so fail before any mutation.
     if (!before?.id) throw Error("Score-only request requires an existing list entry");
-    const desiredRaw = Math.round(request.score * 10);
+    const desiredRaw = Math.round(Number(request.score) * 10);
     changed = before.scoreRaw !== desiredRaw;
     if (changed) {
       const mutation = `mutation ($id:Int!,$scoreRaw:Int!) {
@@ -107,7 +107,7 @@ for (const request of requests) {
         throw Error("Unexpected score mutation response");
     }
   } else {
-    if (before?.status === "REPEATING" || (before?.progress ?? 0) > request.progress)
+    if (before?.status === "REPEATING" || (before?.progress ?? 0) > Number(request.progress))
       throw Error("Conflicting existing AniList state");
     changed = before?.status !== "COMPLETED" || before?.progress !== request.progress;
     if (changed) {
@@ -133,7 +133,7 @@ for (const request of requests) {
   const after = afterMedia.mediaListEntry;
   if (!after ||
       (scoreOnly
-        ? after.scoreRaw !== Math.round(request.score * 10)
+        ? after.scoreRaw !== Math.round(Number(request.score) * 10)
         : after.status !== "COMPLETED" || after.progress !== request.progress))
     throw Error("Authenticated readback mismatch");
   if (before) {
