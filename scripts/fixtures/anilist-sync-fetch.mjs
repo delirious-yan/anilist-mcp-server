@@ -19,5 +19,5 @@ globalThis.fetch = async (input, init) => {
   writeFileSync(fixture.tracePath, JSON.stringify(trace));
   assert.ok(fixture.responses.length, "Unexpected GraphQL call; no network allowed");
   const next = fixture.responses.shift();
-  return new Response(JSON.stringify(next.body), { status: next.status ?? 200 });
+  return new globalThis.Response(JSON.stringify(next.body), { status: next.status ?? 200 });
 };
