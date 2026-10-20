@@ -1,25 +1,51 @@
-# AniList update method (single or batch)
+# AniList — standard update workflow (2026-10-20)
 
-## Standard procedure
+> **Authoritative owner directive:** Work on this repository directly on `main`. **Do not create a branch, pull request, reviewer requirement, or merge step.** For owner-authorized personal AniList list completion updates, use one and only one execution route:
+>
+> `anilist-requests/current.json` → direct commit to `main` → existing `AniList single or batch sync` GitHub Actions → authenticated readback for **every** requested entry.
+>
+> No Work-mode handoff, Jules review, one-off workflow, historical migration script, alternate direct mutation, or PR-based fallback. Branch protection and platform safeguards remain authoritative; report a real GitHub block rather than circumventing it.
 
-1. Require explicit owner authorization for each AniList change. Confirm account `Luciedmeo`, media IDs, titles, episode counts, and intended status before committing. Keep private rankings in `mind-self`, never in this public repository.
-2. Read `anilist-requests/current.json`, `scripts/sync-anilist-request.mjs`, and `.github/workflows/anilist-single-entry-sync.yml` before changing behavior. For one title, the request may be one object; for multiple titles, use `{ "entries": [ ... ] }` (1–25 distinct IDs). Each entry uses `mediaId`, `expectedTitle`, `expectedEpisodes`, `status: "COMPLETED"`, and `progress` equal to the expected episode count. Movies generally use 1/1, but verify against AniList rather than assuming.
-3. Use GitHub connector `fetch_file` to obtain the current blob SHA, then `update_file` with the full replacement and that SHA. Avoid concurrent writes to the same file. Commit the request file on `main`; the push triggers the existing workflow. Do not modify the workflow or script for ordinary list updates.
-4. Inspect the exact workflow run, job conclusion, and job logs. Require one `VERIFIED account=Luciedmeo mediaId=... status=COMPLETED progress=...` line for **every** requested entry. A green GitHub job alone is less informative than item-level verification. If one fails, do not claim the whole batch succeeded; check which preceding entries were already applied before retrying.
-5. Reconcile any owner-approved tier changes in the private `mind-self` ranking independently. Report exact verified outcomes and links briefly.
+## Normal list update — execute all steps
 
-## GitHub connector write-block troubleshooting
+1. **Verify instruction and identity.** The owner must explicitly request the live change, targeting AniList account `Luciedmeo`. Resolve exact AniList media IDs and matching romaji/English titles, format/season/cour and episode totals. Separate seasons and special entries may have distinct IDs. Do not infer a numerical AniList score from private Chaos tiers, praise or completion. Do not change any unrelated fields.
+2. **Read trusted source.** Inspect `anilist-requests/current.json` on `main` using GitHub `fetch_file` and retain its current blob SHA. The reusable implementation is `.github/workflows/anilist-single-entry-sync.yml` running `scripts/sync-anilist-request.mjs`. No workflow/script edits are needed for ordinary list updates.
+3. **Replace the whole request snapshot**, not append to older requests. Supply 1–25 unique IDs using the supported structure (this is an illustrative **historical** verified title, not a standing instruction to reapply it):
+   ```json
+   {
+     "entries": [
+       {
+         "mediaId": 138788,
+         "expectedTitle": "Under Ninja",
+         "expectedEpisodes": 12,
+         "status": "COMPLETED",
+         "progress": 12
+       }
+     ]
+   }
+   ```
+   `progress` must equal the actual verified episode count. Only `COMPLETED` is currently supported.
+4. **Commit directly to protected `main`**, using GitHub `update_file` with the exact current blob SHA, complete JSON, `branch: "main"` and an accurate commit message. No branches, PRs, native reviews, self-approval, merge or manual CI gate. Do not race concurrent edits to the same file. If GitHub rejects the operation, report the actual error and stop; do not silently switch routes.
+5. **Follow the actual sync run.** Find the GitHub Actions workflow named `AniList single or batch sync` with event `push`, head branch `main` and exact head SHA equal to the successful request-file commit. Require `completed/success` for its `sync` job; unrelated test/quality CI is not proof of an AniList mutation.
+6. **Verify account and each item from authenticated logs.** For **every** media ID, require the exact outcome `VERIFIED account=Luciedmeo mediaId=<id> status=COMPLETED progress=<n>`. The maintained script checks `Viewer` account name, media identity and exact episode count, refuses conflicting/regressive states, performs `SaveMediaListEntry` only for requested status/progress when needed, then reads back and compares preserved fields (score, notes, repeats, privacy, lists, dates, etc.). No `VERIFIED` readback = no verified success.
+7. **Report concisely and keep continuity.** Give the result for each media and the real sync run link. When separately appropriate for an already owner-trusted agent, reconcile `mind-self` private watch history and explicit Chaos tiers; never copy private tiers into this public request or invent numerical AniList scores.
 
-A connector error saying `This tool call was blocked by OpenAI's safety checks` is not itself a GitHub HTTP permission or branch-protection error. Do not infer a revoked token or broken AniList workflow without GitHub-side evidence. Check whether reads work, compare arguments against a previously successful `fetch_file` + `update_file` sequence, and distinguish GitHub API errors (401/403/409/422) from a pre-execution safety block. Do not attempt to circumvent a safety restriction by disguising a request, changing endpoints, or splitting forbidden actions. If an ordinary authorized retry is allowed and succeeds, record the outcome but do not assert the precise internal reason for the earlier block. If restrictions persist, stop and request an approved alternative execution path.
+## Hard rules
 
-## Observed evidence (2026-10-15/16)
+- **Reject all superseded execution methods** for routine AniList account updates: PR-based workflow, Jules/external review, one-off workflow, AniDB migration jobs, manual rerun of historical migration workflows, ad hoc local GraphQL writes, direct MCP list writes as a substitute for the maintained request-file workflow, dispatch of arbitrary workflows, or installing alternate app/tool routes. Historical examples remain in Git history for audit, not as instructions.
+- The same **direct-`main`, no-PR** owner policy applies to **other work in this AniList repository**, such as code and documentation updates. Those changes still require proportionate testing, review of risks, appropriate authorization and obeying GitHub's enforced rules. Only changes to `anilist-requests/current.json` trigger the maintained AniList sync job; editing this documentation must not write to AniList.
+- Do not change the existing `ANILIST_ACCESS_TOKEN` secret, expose credentials, modify the workflow to avoid verification, run on the owner's self-hosted workstation, relax repository protections, or treat mere repository access as live account write authorization.
+- Batches are sequential, **not atomic**. If a later item fails, prior items may have changed. Inspect authenticated per-ID state before retrying; report partial outcomes.
+- Connector safety-check rejection is distinct from GitHub HTTP 409/403 or failed Actions. An ordinary authorized retry can be tried but never disguise an operation to bypass safety checks. GitHub rules and the executing actor's permissions must be checked live.
 
-- A prior single-entry request completed and authenticated read-back verified media 199547 (13/13), run 38769935865.
-- Some later GitHub file writes returned a connector safety-check block with no GitHub HTTP response. The cause was not exposed.
-- Subsequent ordinary `update_file` calls succeeded without a permission or token change: batch script commit `09fd066`, workflow labeling commit `7ad38a5`, request commit `bd2ba99`; private ranking update commit `69bf69a`.
-- Batch run 38772060618 completed successfully and logged three individual authenticated verifications: media 617, 2236, and 5681, each 1/1.
-- Therefore the evidence supports intermittent or request-dependent connector-side rejection, **not** a confirmed underlying root cause. Repository writes and GitHub Actions execution demonstrably worked afterward.
+## Verified reference — October 20, 2026
 
-## Current constraints
+The maintained mechanism was verified by [GitHub Actions run #39423520973](https://github.com/delirious-yan/anilist-mcp-server/actions/runs/39423520973), event `push` on `main`, exact commit [`88a95073`](https://github.com/delirious-yan/anilist-mcp-server/commit/88a95073ddfaa45f9b861118e66c447603c10598). The job succeeded, authenticated `Luciedmeo`, and independently logged:
 
-The script currently supports only completion updates, requires an exact title match against AniList romaji/English and exact known episode count, refuses repeating or regressive progress, and preserves unrelated list fields. Batch updates are sequential, not transactional: an error on a later entry can leave earlier entries applied. A manual `workflow_dispatch` reruns the current request file. Keep the workflow's Node.js 24-compatible `actions/checkout@v5`.
+- `117612`: *How a Realist Hero Rebuilt the Kingdom* Part 1 — `COMPLETED 13/13`
+- `139648`: *How a Realist Hero Rebuilt the Kingdom* Part 2 — `COMPLETED 13/13`
+- `138788`: *Under Ninja* — `COMPLETED 12/12`
+
+All three were read back; no numeric scores were written. The historical reference commit came from [merged PR #10](https://github.com/delirious-yan/anilist-mcp-server/pull/10), **not** from a direct push. The owner has now rejected that PR step for future work. The verified reusable *sync mechanism* is the same; a separate successful direct documentation commit establishes that the now-updated branch rules permit no-PR editing. Do not conflate the two types of evidence.
+
+This file supersedes earlier AniList workflows and fallbacks. For general repository tasks, follow `AGENTS.md`; for the specific account updater skill, follow `.agents/skills/anilist-github-actions-write/SKILL.md`, which must point back to this procedure.
