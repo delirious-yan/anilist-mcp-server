@@ -11,7 +11,10 @@ const trace = [];
 // Skip only the CLI's pacing delay; timeout behavior is outside this fixture suite.
 let clock = 0;
 Date.now = () => (clock += 3000);
-globalThis.fetch = async (input, init) => {
+/** @param {unknown} input
+ * @param {{ method?: string, body?: unknown }} [init]
+ */
+async function fixtureFetch(input, init) {
   assert.equal(input, "https://graphql.anilist.co");
   assert.equal(init?.method, "POST");
   const call = JSON.parse(String(init?.body));
@@ -20,4 +23,5 @@ globalThis.fetch = async (input, init) => {
   assert.ok(fixture.responses.length, "Unexpected GraphQL call; no network allowed");
   const next = fixture.responses.shift();
   return new globalThis.Response(JSON.stringify(next.body), { status: next.status ?? 200 });
-};
+}
+globalThis.fetch = fixtureFetch;
