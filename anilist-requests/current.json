@@ -1,18 +1,18 @@
 {
   "entries": [
     {
-      "mediaId": 120377,
-      "expectedTitle": "Cyberpunk: Edgerunners",
-      "expectedEpisodes": 10,
+      "mediaId": 187663,
+      "expectedTitle": "Sozai Saishuka no Isekai Ryokouki",
+      "expectedEpisodes": 12,
       "status": "COMPLETED",
-      "progress": 10
+      "progress": 12
     },
     {
-      "mediaId": 195539,
-      "expectedTitle": "Cyberpunk: Edgerunners 2",
-      "expectedEpisodes": 10,
+      "mediaId": 187387,
+      "expectedTitle": "Onmyo Kaiten Re:Birth Verse",
+      "expectedEpisodes": 12,
       "status": "COMPLETED",
-      "progress": 10
+      "progress": 12
     }
   ]
 }
